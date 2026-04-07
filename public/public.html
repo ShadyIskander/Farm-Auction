@@ -1,0 +1,1040 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Farm Auction • Public</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Rye&family=Nunito:wght@400;600;700;800;900&display=swap" rel="stylesheet">
+  <style>
+    /* Enhanced color palette - ALL YOUR ORIGINAL COLORS */
+    :root {
+      --wood-dark: #1a1208;
+      --wood-medium: #2c1c0c;
+      --wood-light: #4a3118;
+      --wood-gold: #8b6b3d;
+      --cream: #f8f4e8;
+      --cream-light: #fffcf5;
+      --green-dark: #1e3c28;
+      --green-medium: #2d5a3b;
+      --gold-primary: #d4af37;
+      --gold-secondary: #f4d03f;
+      --bronze: #cd7f32;
+      --money-color: #27ae60;
+      --points-color: #3498db;
+      --warning: #e74c3c;
+      
+      /* Confetti colors */
+      --confetti-1: #FFD700;
+      --confetti-2: #FF6B6B;
+      --confetti-3: #4ECDC4;
+      --confetti-4: #FF8E53;
+    }
+
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+
+    html, body {
+      height: 100%;
+      font-family: 'Nunito', sans-serif;
+      color: var(--cream);
+      background: linear-gradient(180deg, #0a0704 0%, #1a1208 30%, #2c1c0c 100%);
+      overflow-x: hidden;
+    }
+
+    /* Animated background */
+    .bg-animation {
+      position: fixed;
+      inset: 0;
+      z-index: -1;
+      overflow: hidden;
+    }
+
+    .bg-animation::before {
+      content: '';
+      position: absolute;
+      inset: 0;
+      background: 
+        radial-gradient(circle at 20% 30%, rgba(212, 175, 55, 0.15) 0%, transparent 40%),
+        radial-gradient(circle at 80% 70%, rgba(61, 124, 79, 0.12) 0%, transparent 40%),
+        linear-gradient(165deg, var(--wood-dark) 0%, var(--wood-medium) 100%);
+      z-index: 1;
+    }
+
+    /* Main layout container - SIDE BY SIDE */
+    .main-layout {
+      display: flex;
+      max-width: 1600px;
+      margin: 0 auto;
+      padding: 30px 20px;
+      gap: 40px;
+      min-height: 100vh;
+      position: relative;
+      z-index: 2;
+    }
+
+    /* LEFT SIDE - HUGE ANIMAL DISPLAY */
+    .left-animal-side {
+      flex: 1;
+      min-width: 0;
+      display: flex;
+      flex-direction: column;
+    }
+
+    /* RIGHT SIDE - AUCTION INFO */
+    .right-auction-side {
+      flex: 1;
+      min-width: 0;
+      display: flex;
+      flex-direction: column;
+      gap: 40px;
+    }
+
+    /* Header - Moved to right side */
+    .header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 25px 40px;
+      background: linear-gradient(135deg, rgba(44, 28, 12, 0.9), rgba(26, 18, 8, 0.95));
+      backdrop-filter: blur(15px);
+      border-radius: 24px;
+      border: 1px solid rgba(184, 148, 84, 0.25);
+      box-shadow: 0 20px 40px rgba(0, 0, 0, 0.4), inset 0 1px 0 rgba(255, 255, 255, 0.1);
+      position: relative;
+      overflow: hidden;
+    }
+
+    .header-content {
+      position: relative;
+      z-index: 1;
+    }
+
+    .header h1 {
+      font-family: 'Rye', serif;
+      font-size: 3.5rem;
+      font-weight: 400;
+      letter-spacing: 1px;
+      margin-bottom: 8px;
+      background: linear-gradient(135deg, var(--cream-light), var(--gold-primary));
+      -webkit-background-clip: text;
+      background-clip: text;
+      color: transparent;
+      text-shadow: 0 5px 15px rgba(0, 0, 0, 0.3);
+    }
+
+    .header p {
+      font-size: 1.1rem;
+      opacity: 0.85;
+      font-weight: 500;
+      letter-spacing: 0.3px;
+    }
+
+    .live-badge {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      background: linear-gradient(135deg, rgba(231, 76, 60, 0.15), rgba(192, 57, 43, 0.1));
+      padding: 15px 25px;
+      border-radius: 16px;
+      border: 1px solid rgba(231, 76, 60, 0.3);
+      backdrop-filter: blur(10px);
+      position: relative;
+      z-index: 1;
+    }
+
+    .live-pulse {
+      width: 12px;
+      height: 12px;
+      background: var(--warning);
+      border-radius: 50%;
+      animation: pulse 2s infinite;
+    }
+
+    @keyframes pulse {
+      0% { transform: scale(1); opacity: 1; }
+      50% { transform: scale(1.2); opacity: 0.7; }
+      100% { transform: scale(1); opacity: 1; }
+    }
+
+    .live-badge span {
+      font-weight: 800;
+      font-size: 1.1rem;
+      letter-spacing: 1px;
+    }
+
+    /* HUGE ANIMAL DISPLAY - LEFT SIDE */
+    .huge-animal-container {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      background: linear-gradient(135deg, rgba(44, 28, 12, 0.85), rgba(26, 18, 8, 0.95));
+      backdrop-filter: blur(20px);
+      border-radius: 24px;
+      border: 1px solid rgba(184, 148, 84, 0.2);
+      padding: 40px;
+      box-shadow: 0 25px 50px rgba(0, 0, 0, 0.3), inset 0 1px 0 rgba(255, 255, 255, 0.05);
+      position: relative;
+      overflow: hidden;
+      min-height: 800px;
+    }
+
+    /* HUGE Animal icon/image - MASSIVE SIZE */
+    #huge-animal-icon {
+      width: 600px !important;
+      height: 500px !important;
+      border-radius: 50px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      border: 8px solid rgba(212, 175, 55, 0.5);
+      background: linear-gradient(135deg, rgba(212, 175, 55, 0.15), rgba(184, 148, 84, 0.1));
+      overflow: hidden;
+      box-shadow: 
+        0 40px 80px rgba(0, 0, 0, 0.6),
+        inset 0 10px 30px rgba(255, 255, 255, 0.1);
+      position: relative;
+      z-index: 10;
+      margin-bottom: 30px;
+    }
+    
+    /* HUGE IMAGE STYLING */
+    #huge-animal-icon img {
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+      border-radius: 50px;
+      display: block;
+      transition: transform 0.3s ease;
+    }
+    
+    #huge-animal-icon img:hover {
+      transform: scale(1.05);
+    }
+    
+    /* HUGE MYSTERY BOX */
+    #huge-mystery-box { 
+      width: 500px !important;
+      height: 500px !important;
+      border-radius: 50px;
+      display: none;
+      align-items: center;
+      justify-content: center;
+      background: linear-gradient(135deg, rgba(30, 60, 40, 0.9), rgba(45, 90, 59, 0.8)) !important;
+      border: 8px solid rgba(61, 124, 79, 0.9) !important;
+      font-size: 200px;
+      position: relative;
+      z-index: 15 !important;
+      box-shadow: 
+        0 40px 80px rgba(0, 0, 0, 0.6),
+        0 0 60px rgba(61, 124, 79, 0.8) !important;
+      animation: hugeMysteryPulse 2s infinite !important;
+      margin-bottom: 30px;
+    }
+
+    @keyframes hugeMysteryPulse {
+      0% { 
+        transform: scale(1); 
+        box-shadow: 0 40px 80px rgba(0, 0, 0, 0.6), 0 0 60px rgba(61, 124, 79, 0.8); 
+      }
+      50% { 
+        transform: scale(1.03); 
+        box-shadow: 0 50px 100px rgba(0, 0, 0, 0.7), 0 0 80px rgba(61, 124, 79, 1); 
+      }
+      100% { 
+        transform: scale(1); 
+        box-shadow: 0 40px 80px rgba(0, 0, 0, 0.6), 0 0 60px rgba(61, 124, 79, 0.8); 
+      }
+    }
+
+    /* HUGE Animal name display - TITLE UNDER THE PICTURE */
+    #huge-animal-name {
+      font-family: 'Rye', serif;
+      font-weight: 400;
+      letter-spacing: 0.5px;
+      font-size: 4.5rem;
+      color: var(--cream-light);
+      text-shadow: 
+        0 5px 15px rgba(0, 0, 0, 0.5),
+        0 0 30px rgba(212, 175, 55, 0.4);
+      margin-bottom: 20px;
+      text-align: center;
+      line-height: 1.2;
+      max-width: 600px;
+      padding: 20px 40px;
+      background: linear-gradient(135deg, rgba(44, 28, 12, 0.7), rgba(26, 18, 8, 0.8));
+      border-radius: 30px;
+      border: 3px solid rgba(212, 175, 55, 0.3);
+      backdrop-filter: blur(10px);
+      box-shadow: 0 20px 50px rgba(0, 0, 0, 0.4);
+    }
+    
+    /* HUGE Auction status */
+    #huge-auction-status {
+      color: rgba(255, 255, 255, 0.9);
+      font-weight: 800;
+      font-size: 1.8rem;
+      margin-bottom: 30px;
+      text-align: center;
+      text-transform: uppercase;
+      letter-spacing: 2px;
+      padding: 15px 30px;
+      background: linear-gradient(135deg, rgba(44, 28, 12, 0.5), rgba(26, 18, 8, 0.6));
+      border-radius: 20px;
+      border: 2px solid rgba(212, 175, 55, 0.2);
+      backdrop-filter: blur(5px);
+    }
+
+    /* HUGE Reveal button */
+    #huge-reveal-button {
+      background: linear-gradient(135deg, var(--gold-primary), var(--bronze));
+      color: var(--wood-dark);
+      border: none;
+      padding: 20px 40px;
+      font-size: 1.5rem;
+      font-weight: 900;
+      border-radius: 20px;
+      cursor: pointer;
+      transition: all 0.3s ease;
+      letter-spacing: 2px;
+      text-transform: uppercase;
+      box-shadow: 0 15px 35px rgba(212, 175, 55, 0.4);
+      display: none;
+      z-index: 20;
+    }
+
+    #huge-reveal-button:hover {
+      transform: translateY(-5px) scale(1.05);
+      box-shadow: 0 20px 45px rgba(212, 175, 55, 0.6);
+    }
+
+    /* RIGHT SIDE - PODIUM SECTION */
+    .podium-section {
+      background: linear-gradient(135deg, rgba(44, 28, 12, 0.85), rgba(26, 18, 8, 0.95));
+      backdrop-filter: blur(20px);
+      border-radius: 24px;
+      border: 1px solid rgba(184, 148, 84, 0.2);
+      padding: 40px;
+      box-shadow: 0 25px 50px rgba(0, 0, 0, 0.3), inset 0 1px 0 rgba(255, 255, 255, 0.05);
+      position: relative;
+      overflow: hidden;
+      min-height: 500px;
+      flex: 1;
+    }
+
+    /* IMPROVED PODIUM DESIGN */
+    .podium-container {
+      position: relative;
+      width: 100%;
+      height: 300px;
+      display: flex;
+      justify-content: center;
+      align-items: flex-end;
+      margin-top: 20px;
+    }
+
+    .podium {
+      display: flex;
+      align-items: flex-end;
+      justify-content: center;
+      gap: 10px;
+      height: 250px;
+      width: 100%;
+      max-width: 800px;
+      margin: 0 auto;
+    }
+
+    .podium-step {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      position: relative;
+    }
+
+    .podium-stand {
+      width: 140px;
+      background: linear-gradient(to bottom, var(--wood-gold), var(--wood-light));
+      border-radius: 12px 12px 0 0;
+      position: relative;
+      box-shadow: 
+        inset 0 10px 20px rgba(0, 0, 0, 0.3),
+        0 5px 15px rgba(0, 0, 0, 0.4);
+      border: 2px solid rgba(212, 175, 55, 0.3);
+    }
+
+    .podium-stand.first {
+      height: 180px;
+      background: linear-gradient(to bottom, var(--gold-primary), var(--bronze));
+    }
+
+    .podium-stand.second {
+      height: 140px;
+    }
+
+    .podium-stand.third {
+      height: 100px;
+    }
+
+    .podium-stand::after {
+      content: '';
+      position: absolute;
+      top: 10px;
+      left: 10px;
+      right: 10px;
+      height: 4px;
+      background: rgba(255, 255, 255, 0.2);
+      border-radius: 2px;
+    }
+
+    .podium-label {
+      margin-top: 15px;
+      font-weight: 700;
+      color: var(--cream);
+      text-align: center;
+      font-family: 'Rye', serif;
+      font-size: 1.2rem;
+      text-shadow: 0 2px 4px rgba(0, 0, 0, 0.3);
+    }
+
+    .podium-plaque {
+      position: absolute;
+      top: -40px;
+      left: 50%;
+      transform: translateX(-50%);
+      padding: 12px 24px;
+      border-radius: 16px;
+      background: linear-gradient(135deg, rgba(26, 18, 8, 0.9), rgba(44, 28, 12, 0.95));
+      border: 2px solid rgba(212, 175, 55, 0.4);
+      color: var(--gold-primary);
+      font-family: 'Rye', serif;
+      font-weight: 400;
+      letter-spacing: 1px;
+      font-size: 1.5rem;
+      box-shadow: 0 10px 25px rgba(0, 0, 0, 0.4);
+      z-index: 4;
+      white-space: nowrap;
+    }
+
+    /* Info grid */
+    .info-grid {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 20px;
+    }
+    
+    @media (max-width: 1200px) { 
+      .info-grid { 
+        grid-template-columns: 1fr; 
+      } 
+    }
+
+    .info {
+      border-radius: 20px;
+      background: linear-gradient(135deg, rgba(44, 28, 12, 0.8), rgba(26, 18, 8, 0.9));
+      border: 1px solid rgba(212, 175, 55, 0.2);
+      padding: 25px;
+      box-shadow: 0 15px 30px rgba(0, 0, 0, 0.25);
+      transition: all 0.3s ease;
+    }
+
+    .info:hover {
+      transform: translateY(-5px);
+      border-color: rgba(212, 175, 55, 0.4);
+      box-shadow: 0 20px 40px rgba(0, 0, 0, 0.3);
+    }
+
+    .info .k {
+      color: rgba(255, 244, 230, 0.8);
+      font-weight: 800;
+      font-size: 14px;
+      letter-spacing: 1px;
+      text-transform: uppercase;
+      margin-bottom: 10px;
+    }
+
+    .info .v {
+      font-weight: 900;
+      font-size: 2.2rem;
+      color: var(--cream-light);
+    }
+
+    #current-price-large {
+      color: var(--money-color);
+    }
+
+    #highest-bidder-large {
+      color: var(--gold-primary);
+    }
+
+    #auction-type-text {
+      color: var(--points-color);
+      font-weight: 900;
+    }
+
+    /* Confetti container */
+    .confetti-container {
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      pointer-events: none;
+      z-index: 1000;
+      overflow: hidden;
+      display: none;
+    }
+
+    .confetti {
+      position: absolute;
+      width: 10px;
+      height: 10px;
+      background: var(--confetti-1);
+      top: -10px;
+      opacity: 0;
+    }
+
+    /* Animation for confetti */
+    @keyframes confetti-fall {
+      0% {
+        transform: translateY(0) rotate(0deg);
+        opacity: 1;
+      }
+      100% {
+        transform: translateY(100vh) rotate(720deg);
+        opacity: 0;
+      }
+    }
+
+    /* ORIGINAL ELEMENTS - HIDDEN */
+    #animal-display,
+    #animal-icon-large,
+    #mystery-box,
+    .reveal-button {
+      display: none !important;
+    }
+
+    /* Responsive adjustments */
+    @media (max-width: 1400px) {
+      .main-layout {
+        flex-direction: column;
+        gap: 30px;
+      }
+      
+      .left-animal-side,
+      .right-auction-side {
+        width: 100%;
+      }
+      
+      .huge-animal-container {
+        min-height: 700px;
+      }
+      
+      #huge-animal-icon,
+      #huge-mystery-box {
+        width: 400px !important;
+        height: 400px !important;
+      }
+      
+      #huge-mystery-box {
+        font-size: 150px;
+      }
+      
+      #huge-animal-name {
+        font-size: 3.5rem;
+      }
+    }
+
+    @media (max-width: 768px) {
+      .header {
+        flex-direction: column;
+        text-align: center;
+        gap: 20px;
+        padding: 20px;
+      }
+      
+      .header h1 {
+        font-size: 2.5rem;
+      }
+      
+      #huge-animal-icon,
+      #huge-mystery-box {
+        width: 300px !important;
+        height: 300px !important;
+        border-radius: 40px;
+      }
+      
+      #huge-mystery-box {
+        font-size: 120px;
+      }
+      
+      #huge-animal-name {
+        font-size: 2.5rem;
+        padding: 15px 25px;
+      }
+      
+      #huge-auction-status {
+        font-size: 1.4rem;
+        padding: 12px 24px;
+      }
+      
+      #huge-reveal-button {
+        padding: 15px 30px;
+        font-size: 1.2rem;
+      }
+      
+      .podium {
+        transform: scale(0.9);
+      }
+      
+      .podium-stand {
+        width: 100px;
+      }
+      
+      .podium-stand.first {
+        height: 160px;
+      }
+      
+      .podium-stand.second {
+        height: 120px;
+      }
+      
+      .podium-stand.third {
+        height: 90px;
+      }
+    }
+    
+    @media (max-width: 480px) {
+      #huge-animal-icon,
+      #huge-mystery-box {
+        width: 250px !important;
+        height: 250px !important;
+        border-radius: 30px;
+      }
+      
+      #huge-mystery-box {
+        font-size: 100px;
+      }
+      
+      #huge-animal-name {
+        font-size: 2rem;
+        padding: 12px 20px;
+      }
+      
+      #huge-auction-status {
+        font-size: 1.2rem;
+        padding: 10px 20px;
+      }
+    }
+  </style>
+</head>
+
+<body>
+  <!-- Animated background -->
+  <div class="bg-animation" id="bg-animation"></div>
+  
+  <!-- Confetti container for blind auction reveals -->
+  <div class="confetti-container" id="confetti-container"></div>
+
+  <!-- Main layout - SIDE BY SIDE -->
+  <div class="main-layout">
+    <!-- LEFT SIDE - HUGE ANIMAL DISPLAY -->
+    <div class="left-animal-side">
+      <div class="huge-animal-container">
+        <!-- HUGE Mystery box - This WILL show for blind auctions -->
+        <div id="huge-mystery-box">
+          🎁
+        </div>
+        <!-- HUGE Animal icon - This WILL show for normal auctions -->
+        <div id="huge-animal-icon">
+          <!-- Image will be synced from your original system -->
+        </div>
+        
+        <!-- HUGE Animal title under the picture -->
+        <div id="huge-animal-name">—</div>
+        <div id="huge-auction-status">Waiting for auction...</div>
+        
+        <!-- HUGE Reveal button -->
+      </div>
+    </div>
+
+    <!-- RIGHT SIDE - AUCTION INFO -->
+    <div class="right-auction-side">
+      <!-- Header -->
+      <header class="header">
+        <div class="header-content">
+          <h1>Farm Auction</h1>
+          <p>Public View • Live Auction Dashboard</p>
+        </div>
+        <div class="live-badge">
+          <div class="live-pulse"></div>
+          <span>LIVE</span>
+        </div>
+      </header>
+
+      <!-- Info grid -->
+      <section class="info-grid">
+        <div class="info">
+          <div class="k">Current price</div>
+          <div class="v" id="current-price-large">$0</div>
+        </div>
+        <div class="info">
+          <div class="k">Highest bidder</div>
+          <div class="v" id="highest-bidder-large">—</div>
+        </div>
+        <div class="info">
+          <div class="k">Auction type</div>
+          <div class="v" id="auction-type-text">—</div>
+        </div>
+        <div class="info">
+          <div class="k">Animal points</div>
+          <div class="v" id="animal-points-value">—</div>
+        </div>
+      </section>
+    </div>
+  </div>
+
+  <!-- ORIGINAL ELEMENTS - HIDDEN BUT PRESERVED FOR DATA -->
+  <div style="display: none;">
+    <div id="animal-display">
+      <div id="mystery-box">
+        🎁
+      </div>
+      <div id="animal-icon-large">
+        🏛️
+      </div>
+      <div id="animal-name-large">—</div>
+      <div id="auction-status-display">Waiting for auction...</div>
+    </div>
+    <button class="reveal-button" id="reveal-button">Reveal Animal</button>
+  </div>
+
+  <script src="/socket.io/socket.io.js"></script>
+  <script>
+  // HUGE ANIMAL DISPLAY SCRIPT - USING YOUR ORIGINAL IMAGE SYSTEM
+  document.addEventListener('DOMContentLoaded', function() {
+    console.log('=== FARM AUCTION - SIDE BY SIDE LAYOUT ===');
+    console.log('Left: Huge Animal Display');
+    console.log('Right: Auction Info');
+    
+    // Get HUGE elements
+    const hugeMysteryBox = document.getElementById('huge-mystery-box');
+    const hugeAnimalIcon = document.getElementById('huge-animal-icon');
+    const hugeAnimalName = document.getElementById('huge-animal-name');
+    const hugeAuctionStatus = document.getElementById('huge-auction-status');
+    const hugeRevealButton = document.getElementById('huge-reveal-button');
+    
+    // Get ORIGINAL elements (for data syncing)
+    const originalAnimalIcon = document.getElementById('animal-icon-large');
+    const originalAnimalName = document.getElementById('animal-name-large');
+    const originalAuctionStatus = document.getElementById('auction-status-display');
+    const auctionTypeText = document.getElementById('auction-type-text');
+    const currentPriceLarge = document.getElementById('current-price-large');
+    const highestBidderLarge = document.getElementById('highest-bidder-large');
+    const timeRemaining = document.getElementById('time-remaining');
+    
+    // Function to sync image from original to huge display
+    function syncImageToHugeDisplay() {
+      if (!originalAnimalIcon || !hugeAnimalIcon) return;
+      
+      // Get the image from the original display
+      const originalImage = originalAnimalIcon.querySelector('img');
+      if (originalImage && originalImage.src) {
+        // Clone the image for the huge display
+        hugeAnimalIcon.innerHTML = '';
+        const clonedImage = originalImage.cloneNode(true);
+        clonedImage.style.width = '100%';
+        clonedImage.style.height = '100%';
+        clonedImage.style.objectFit = 'cover';
+        clonedImage.style.borderRadius = '50px';
+        hugeAnimalIcon.appendChild(clonedImage);
+      } else {
+        // If no image, check if animal is known from state
+        if (window.currentState?.auction?.animalType) {
+          // Use the known animal type to create an image
+          const animalType = window.currentState.auction.animalType;
+          const imgSrc = window.animalImages ? window.animalImages[animalType] : null;
+          
+          if (imgSrc) {
+            hugeAnimalIcon.innerHTML = `<img src="${imgSrc}" alt="${animalType}" style="width:100%;height:100%;object-fit:cover;border-radius:50px;">`;
+          } else {
+            // Fallback to emoji
+            const emoji = getAnimalEmoji(animalType);
+            hugeAnimalIcon.innerHTML = `<div style="font-size: 200px; color: var(--gold-primary); display: flex; align-items: center; justify-content: center; height: 100%;">${emoji}</div>`;
+          }
+        } else {
+          // Fallback to question mark
+          hugeAnimalIcon.innerHTML = `<div style="font-size: 200px; color: var(--gold-primary); display: flex; align-items: center; justify-content: center; height: 100%;">❓</div>`;
+        }
+      }
+    }
+
+    // Expose for external calls
+    window.syncImageToHugeDisplay = syncImageToHugeDisplay;
+
+    // Helper function for emoji fallback
+    function getAnimalEmoji(type) {
+      const emojis = {
+        cow: "🐄", bull: "🐂", goat: "🐐", sheep: "🐑",
+        chicken: "🐔", rooster: "🐓", doe: "🦌", buck: "🦌",
+        cat: "🐱", dog: "🐶"
+      };
+      return emojis[type] || "❓";
+    }
+
+    // HARDCODED ANIMAL POINTS SYSTEM
+    function getAnimalPointsHardcoded(animalName) {
+      if (!animalName || animalName === '—' || animalName === 'Waiting for auction...') {
+        return null;
+      }
+      
+      const name = animalName.toLowerCase();
+      
+      // HARDCODED POINTS MAPPING
+      if (name.includes('holstein cow') || name.includes('cow')) {
+        return 10;
+      } else if (name.includes('angus bull') || name.includes('bull')) {
+        return 15;
+      } else if (name.includes('alpine goat') || name.includes('goat')) {
+        return 5;
+      } else if (name.includes('merino ram') || name.includes('ram')) {
+        return 10;
+      } else if (name.includes('rhode island red') || name.includes('chicken')) {
+        return 3;
+      } else if (name.includes('leghorn rooster') || name.includes('rooster')) {
+        return 5;
+      } else if (name.includes('white-tailed doe') || name.includes('doe')) {
+        return 8;
+      } else if (name.includes('whitetail buck') || name.includes('buck')) {
+        return 12;
+      } else if (name.includes('barn cat') || name.includes('cat')) {
+        return 4;
+      } else if (name.includes('shepherd dog') || name.includes('dog')) {
+        return 6;
+      } else if (name.includes('mystery') || name.includes('🎁')) {
+        return null;
+      }
+      
+      return null;
+    }
+
+    // Update animal points display
+    function updateAnimalPoints() {
+      const pointsElement = document.getElementById('animal-points-value');
+      if (!pointsElement) return;
+      
+      const animalName = originalAnimalName ? originalAnimalName.textContent : '';
+      const auctionType = auctionTypeText ? auctionTypeText.textContent.toLowerCase() : '';
+      const isBlind = auctionType.includes('blind');
+      
+      if (isBlind && (animalName.toLowerCase().includes('mystery') || animalName.includes('🎁'))) {
+        // Blind auction
+        pointsElement.textContent = '? pts';
+        pointsElement.style.color = 'var(--points-color)';
+        pointsElement.style.opacity = '0.7';
+      } else {
+        const points = getAnimalPointsHardcoded(animalName);
+        
+        if (points !== null) {
+          pointsElement.textContent = `${points} pts`;
+          pointsElement.style.color = 'var(--points-color)';
+          pointsElement.style.opacity = '1';
+        } else {
+          pointsElement.textContent = '—';
+          pointsElement.style.color = 'var(--cream-light)';
+          pointsElement.style.opacity = '0.8';
+        }
+      }
+    }
+
+    // MAIN SYNC FUNCTION - Syncs everything from original to huge display
+    function syncAllToHugeDisplay() {
+      console.log("🔄 Syncing to huge display...");
+      
+      // Sync animal name
+      if (originalAnimalName && hugeAnimalName) {
+        hugeAnimalName.textContent = originalAnimalName.textContent;
+      }
+      
+      // Sync auction status
+      if (originalAuctionStatus && hugeAuctionStatus) {
+        hugeAuctionStatus.textContent = originalAuctionStatus.textContent;
+        hugeAuctionStatus.style.color = originalAuctionStatus.style.color || 'rgba(255, 255, 255, 0.9)';
+      }
+      
+      // Sync image
+      syncImageToHugeDisplay();
+      
+      // Check auction type and reveal status
+      if (auctionTypeText) {
+        const auctionType = auctionTypeText.textContent.toLowerCase();
+        const isBlind = auctionType.includes('blind');
+        
+        // Check if animal is already revealed
+        const animalName = originalAnimalName ? originalAnimalName.textContent : '';
+        const isRevealed = !animalName.includes('Mystery') && 
+                          !animalName.includes('🎁') && 
+                          animalName !== '—' &&
+                          animalName !== 'Waiting for auction...';
+        
+        // Check current state for revealed animal
+        const stateRevealed = window.currentState?.auction?.animalType && 
+                             window.currentState.auction.auctionType === 'blind';
+        
+        if (isBlind && !isRevealed && !stateRevealed) {
+          console.log('🟢 BLIND AUCTION - Animal still hidden');
+          
+          // Animal is still hidden - show mystery box
+          if (hugeMysteryBox) {
+            hugeMysteryBox.style.display = 'flex';
+          }
+          if (hugeAnimalIcon) {
+            hugeAnimalIcon.style.display = 'none';
+          }
+          if (hugeRevealButton) {
+            hugeRevealButton.style.display = 'inline-block';
+            hugeRevealButton.disabled = false;
+            hugeRevealButton.textContent = 'Reveal Animal';
+            hugeRevealButton.style.background = 'linear-gradient(135deg, var(--gold-primary), var(--bronze))';
+          }
+          if (hugeAuctionStatus) {
+            hugeAuctionStatus.textContent = 'Blind Auction - Animal Hidden';
+            hugeAuctionStatus.style.color = '#FFD700';
+          }
+          if (hugeAnimalName) {
+            hugeAnimalName.textContent = 'Mystery Animal 🎁';
+          }
+        } else {
+          console.log('🔵 Animal is revealed or normal auction');
+          
+          // Hide huge mystery box
+          if (hugeMysteryBox) {
+            hugeMysteryBox.style.display = 'none';
+          }
+          // Show huge animal icon
+          if (hugeAnimalIcon) {
+            hugeAnimalIcon.style.display = 'flex';
+            syncImageToHugeDisplay();
+          }
+          // Hide huge reveal button
+          if (hugeRevealButton) {
+            hugeRevealButton.style.display = 'none';
+          }
+          // Update status if animal was just revealed
+          if (stateRevealed && hugeAuctionStatus) {
+            hugeAuctionStatus.textContent = 'Animal Revealed! 🎉';
+            hugeAuctionStatus.style.color = '#4ECDC4';
+          }
+        }
+      }
+      
+      // Update animal points
+      updateAnimalPoints();
+    }
+    
+    // Setup HUGE reveal button
+    if (hugeRevealButton) {
+      hugeRevealButton.addEventListener('click', function() {
+        console.log('🎯 HUGE Reveal button clicked');
+        
+        // Call the reveal function from public.js
+        if (window.revealAnimal) {
+          const success = window.revealAnimal();
+          if (success) {
+            // Update the huge display
+            setTimeout(() => {
+              syncAllToHugeDisplay();
+              triggerConfetti();
+              
+              // Update button
+              hugeRevealButton.textContent = '🎉 Animal Revealed!';
+              hugeRevealButton.disabled = true;
+              hugeRevealButton.style.background = 'linear-gradient(135deg, #27ae60, #2ecc71)';
+            }, 100);
+          }
+        } else {
+          console.error('revealAnimal function not found!');
+        }
+      });
+    }
+    
+    // Confetti function
+    function triggerConfetti() {
+      const confettiContainer = document.getElementById('confetti-container');
+      if (!confettiContainer) return;
+      
+      confettiContainer.style.display = 'block';
+      confettiContainer.innerHTML = '';
+      
+      // Create confetti particles
+      for (let i = 0; i < 150; i++) {
+        const confetti = document.createElement('div');
+        confetti.className = 'confetti';
+        confetti.style.left = `${Math.random() * 100}%`;
+        confetti.style.backgroundColor = [
+          'var(--confetti-1)',
+          'var(--confetti-2)',
+          'var(--confetti-3)',
+          'var(--confetti-4)'
+        ][Math.floor(Math.random() * 4)];
+        confetti.style.width = `${Math.random() * 10 + 5}px`;
+        confetti.style.height = `${Math.random() * 10 + 5}px`;
+        confetti.style.animation = `confetti-fall ${Math.random() * 3 + 2}s linear forwards`;
+        confetti.style.animationDelay = `${Math.random() * 2}s`;
+        
+        confettiContainer.appendChild(confetti);
+      }
+      
+      // Hide confetti after animation
+      setTimeout(() => {
+        confettiContainer.style.display = 'none';
+      }, 5000);
+    }
+    
+    // Monitor original elements for changes
+    const elementsToMonitor = [
+      originalAnimalIcon,
+      originalAnimalName,
+      originalAuctionStatus,
+      auctionTypeText,
+      currentPriceLarge,
+      highestBidderLarge
+    ];
+    
+    elementsToMonitor.forEach(element => {
+      if (element) {
+        const observer = new MutationObserver(() => {
+          syncAllToHugeDisplay();
+        });
+        observer.observe(element, {
+          childList: true,
+          characterData: true,
+          subtree: true,
+          attributes: true,
+          attributeFilter: ['style', 'class', 'src']
+        });
+      }
+    });
+    
+    // Set up periodic syncing
+    const syncInterval = setInterval(syncAllToHugeDisplay, 1000);
+    
+    // Make sync function globally accessible for public.js
+    window.syncAllToHugeDisplay = syncAllToHugeDisplay;
+    
+    // Initial sync
+    setTimeout(syncAllToHugeDisplay, 500);
+    
+    console.log('✅ SIDE BY SIDE LAYOUT READY!');
+  });
+</script>
+  
+  <!-- ORIGINAL public.js - ALL FUNCTIONALITY PRESERVED -->
+  <script src="/public.js"></script>
+</body>
+</html>

@@ -1,0 +1,1002 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Farm Auction • Admin Command Center</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link
+    href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@400;500;600;700;800&family=Inter:wght@300;400;500;600;700;800&display=swap"
+    rel="stylesheet">
+  <style>
+    /* [EXACTLY YOUR ORIGINAL CSS - NO CHANGES] */
+    :root {
+      --wood-dark: #1a1208;
+      --wood-medium: #2c1c0c;
+      --wood-light: #4a3118;
+      --wood-gold: #8b6b3d;
+      --wood-accent: #b89454;
+      --cream: #f8f4e8;
+      --cream-light: #fffcf5;
+      --cream-dark: #e8e0d0;
+      --green-dark: #1e3c28;
+      --green-medium: #2d5a3b;
+      --green-light: #3d7c4f;
+      --gold-primary: #d4af37;
+      --gold-secondary: #f4d03f;
+      --bronze: #cd7f32;
+      --money-color: #27ae60;
+      --points-color: #3498db;
+      --warning: #e74c3c;
+      --shadow-dark: rgba(0, 0, 0, 0.4);
+      --shadow-light: rgba(255, 255, 255, 0.1);
+      --glass: rgba(255, 253, 245, 0.08);
+      --glass-dark: rgba(26, 18, 8, 0.6);
+    }
+
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+
+    html,
+    body {
+      height: 100%;
+      font-family: 'Inter', sans-serif;
+      color: var(--cream);
+      background: var(--wood-dark);
+      overflow-x: hidden;
+    }
+
+    .wood-background {
+      position: fixed;
+      inset: 0;
+      z-index: -1;
+      background:
+        radial-gradient(circle at 20% 30%, rgba(184, 148, 84, 0.1) 0%, transparent 40%),
+        radial-gradient(circle at 80% 70%, rgba(61, 124, 79, 0.08) 0%, transparent 40%),
+        linear-gradient(165deg, var(--wood-dark) 0%, var(--wood-medium) 100%);
+    }
+
+    .container {
+      max-width: 1600px;
+      margin: 0 auto;
+      padding: 40px 30px;
+      position: relative;
+      z-index: 1;
+    }
+
+    .header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 35px 45px;
+      background: linear-gradient(135deg, rgba(44, 28, 12, 0.85), rgba(26, 18, 8, 0.95));
+      backdrop-filter: blur(20px);
+      border-radius: 24px;
+      border: 1px solid rgba(184, 148, 84, 0.2);
+      box-shadow: 0 25px 50px rgba(0, 0, 0, 0.4), inset 0 1px 0 rgba(255, 255, 255, 0.1);
+      margin-bottom: 40px;
+      position: relative;
+      overflow: hidden;
+    }
+
+    .header-content h1 {
+      font-family: 'Playfair Display', serif;
+      font-size: 3.2rem;
+      font-weight: 700;
+      letter-spacing: 0.5px;
+      margin-bottom: 8px;
+      background: linear-gradient(135deg, var(--cream-light), var(--gold-primary));
+      -webkit-background-clip: text;
+      background-clip: text;
+      color: transparent;
+    }
+
+    .header-content p {
+      font-size: 1.1rem;
+      opacity: 0.85;
+      font-weight: 400;
+      letter-spacing: 0.3px;
+    }
+
+    .admin-badge {
+      background: linear-gradient(135deg, rgba(184, 148, 84, 0.15), rgba(61, 124, 79, 0.1));
+      padding: 18px 28px;
+      border-radius: 16px;
+      border: 1px solid rgba(184, 148, 84, 0.3);
+      backdrop-filter: blur(10px);
+      display: flex;
+      align-items: center;
+      gap: 15px;
+      min-width: 240px;
+    }
+
+    .badge-icon {
+      width: 50px;
+      height: 50px;
+      background: linear-gradient(135deg, var(--gold-primary), var(--bronze));
+      border-radius: 12px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 1.4rem;
+      box-shadow: 0 8px 20px rgba(212, 175, 55, 0.3);
+    }
+
+    .badge-text {
+      font-weight: 600;
+      font-size: 0.95rem;
+      line-height: 1.4;
+    }
+
+    .badge-text span {
+      color: var(--gold-primary);
+      font-weight: 700;
+      font-size: 1.1rem;
+      display: block;
+      margin-top: 2px;
+    }
+
+    .main-grid {
+      display: grid;
+      grid-template-columns: 1.1fr 0.9fr;
+      gap: 35px;
+    }
+
+    @media (max-width: 1400px) {
+      .main-grid {
+        grid-template-columns: 1fr;
+      }
+    }
+
+    .card {
+      background: linear-gradient(135deg, rgba(44, 28, 12, 0.8), rgba(26, 18, 8, 0.9));
+      backdrop-filter: blur(20px);
+      border-radius: 22px;
+      border: 1px solid rgba(184, 148, 84, 0.15);
+      padding: 35px;
+      box-shadow: 0 25px 50px rgba(0, 0, 0, 0.3), inset 0 1px 0 rgba(255, 255, 255, 0.05);
+      position: relative;
+      overflow: hidden;
+    }
+
+    .card h2 {
+      font-family: 'Playfair Display', serif;
+      font-weight: 600;
+      font-size: 2.2rem;
+      margin-bottom: 25px;
+      color: var(--cream-light);
+      position: relative;
+      padding-bottom: 15px;
+    }
+
+    .card h2::after {
+      content: '';
+      position: absolute;
+      bottom: 0;
+      left: 0;
+      width: 60px;
+      height: 3px;
+      background: linear-gradient(90deg, var(--gold-primary), transparent);
+      border-radius: 2px;
+    }
+
+    .form-group {
+      margin-bottom: 20px;
+    }
+
+    .form-group label {
+      display: block;
+      margin-bottom: 8px;
+      font-weight: 600;
+      color: var(--cream);
+      font-size: 0.95rem;
+      text-transform: uppercase;
+      letter-spacing: 0.8px;
+      opacity: 0.9;
+    }
+
+    .form-group input,
+    .form-group select {
+      width: 100%;
+      padding: 14px 18px;
+      background: rgba(26, 18, 8, 0.4);
+      border: 1px solid rgba(184, 148, 84, 0.25);
+      border-radius: 10px;
+      color: var(--cream);
+      font-size: 1rem;
+      font-family: 'Inter', sans-serif;
+      transition: all 0.3s ease;
+    }
+
+    .form-group input:focus,
+    .form-group select:focus {
+      outline: none;
+      border-color: var(--gold-primary);
+      box-shadow: 0 0 0 3px rgba(212, 175, 55, 0.15);
+    }
+
+    .row {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 15px;
+    }
+
+    .btn {
+      background: linear-gradient(135deg, var(--gold-primary), var(--bronze));
+      color: var(--wood-dark);
+      border: none;
+      padding: 16px 32px;
+      font-size: 1rem;
+      font-weight: 700;
+      border-radius: 12px;
+      cursor: pointer;
+      transition: all 0.3s ease;
+      width: 100%;
+      text-transform: uppercase;
+      letter-spacing: 1px;
+      font-family: 'Inter', sans-serif;
+      margin-top: 10px;
+    }
+
+    .btn:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 10px 25px rgba(212, 175, 55, 0.3);
+    }
+
+    .btn-secondary {
+      background: linear-gradient(135deg, rgba(45, 90, 59, 0.8), rgba(30, 60, 40, 0.8));
+      color: var(--cream-light);
+    }
+
+    .btn-danger {
+      background: linear-gradient(135deg, rgba(231, 76, 60, 0.8), rgba(192, 57, 43, 0.8));
+      color: var(--cream-light);
+    }
+
+    /* Animal Image Cards */
+    .animals-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+      gap: 25px;
+      margin-bottom: 35px;
+    }
+
+    .animal-card {
+      background: linear-gradient(135deg, rgba(74, 49, 24, 0.4), rgba(44, 28, 12, 0.6));
+      border-radius: 18px;
+      padding: 20px;
+      cursor: pointer;
+      transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+      border: 1px solid rgba(184, 148, 84, 0.1);
+      position: relative;
+      text-align: center;
+    }
+
+    .animal-card:hover {
+      transform: translateY(-8px);
+      border-color: var(--gold-primary);
+      box-shadow: 0 20px 40px rgba(0, 0, 0, 0.3);
+    }
+
+    .animal-card.selected {
+      border-color: var(--gold-primary);
+      background: linear-gradient(135deg, rgba(184, 148, 84, 0.15), rgba(74, 49, 24, 0.4));
+      box-shadow: inset 0 0 0 1px rgba(212, 175, 55, 0.3);
+    }
+
+    .animal-icon {
+      width: 100%;
+      height: 140px;
+      margin: 0 auto 15px;
+      background: linear-gradient(135deg, rgba(212, 175, 55, 0.1), rgba(184, 148, 84, 0.05));
+      border-radius: 12px;
+      overflow: hidden;
+      border: 1px solid rgba(184, 148, 84, 0.2);
+      position: relative;
+    }
+
+    .animal-icon img {
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+      transition: transform 0.3s ease;
+    }
+
+    .animal-card:hover .animal-icon img {
+      transform: scale(1.05);
+    }
+
+    .animal-name {
+      font-family: 'Playfair Display', serif;
+      font-weight: 600;
+      font-size: 1.3rem;
+      margin-bottom: 6px;
+      color: var(--cream-light);
+    }
+
+    .animal-description {
+      font-size: 0.8rem;
+      opacity: 0.7;
+      margin-bottom: 10px;
+      line-height: 1.4;
+      min-height: 36px;
+      font-style: italic;
+    }
+
+    .animal-price {
+      font-weight: 800;
+      font-size: 1.2rem;
+      color: var(--money-color);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 4px;
+    }
+
+    .animal-price::after {
+      content: 'points';
+      font-size: 0.9em;
+      font-weight: 600;
+      opacity: 0.9;
+    }
+
+    .teams-list {
+      display: flex;
+      flex-direction: column;
+      gap: 18px;
+      max-height: 500px;
+      overflow-y: auto;
+      padding-right: 10px;
+    }
+
+    .team-item {
+      background: linear-gradient(135deg, rgba(74, 49, 24, 0.3), rgba(44, 28, 12, 0.5));
+      border-radius: 14px;
+      padding: 22px;
+      display: flex;
+      align-items: center;
+      gap: 22px;
+      transition: all 0.3s ease;
+      border: 1px solid transparent;
+    }
+
+    .team-item:hover {
+      border-color: rgba(184, 148, 84, 0.3);
+      transform: translateX(5px);
+    }
+
+    .team-rank {
+      width: 50px;
+      height: 50px;
+      background: linear-gradient(135deg, var(--gold-primary), var(--bronze));
+      border-radius: 12px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-weight: 800;
+      font-size: 1.3rem;
+      color: var(--wood-dark);
+      flex-shrink: 0;
+    }
+
+    .team-info {
+      flex: 1;
+    }
+
+    .team-name {
+      font-weight: 700;
+      font-size: 1.2rem;
+      margin-bottom: 8px;
+      color: var(--cream-light);
+    }
+
+    .team-stats {
+      display: flex;
+      gap: 25px;
+      font-size: 0.9rem;
+      opacity: 0.9;
+    }
+
+    .team-money {
+      color: var(--money-color);
+      font-weight: 600;
+    }
+
+    .team-money::before {
+      content: '$';
+      font-size: 0.9em;
+    }
+
+    .team-points {
+      color: var(--points-color);
+      font-weight: 600;
+    }
+
+    .team-points::after {
+      content: ' pts';
+      font-size: 0.8em;
+    }
+
+    .team-animals {
+      color: var(--gold-primary);
+      font-weight: 600;
+    }
+
+    .stats-grid {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 25px;
+      margin-top: 25px;
+    }
+
+    .stat-card {
+      background: linear-gradient(135deg, rgba(184, 148, 84, 0.1), rgba(61, 124, 79, 0.08));
+      border-radius: 16px;
+      padding: 25px;
+      text-align: center;
+      transition: all 0.3s ease;
+      border: 1px solid rgba(184, 148, 84, 0.1);
+    }
+
+    .stat-card:hover {
+      transform: translateY(-5px);
+      border-color: rgba(184, 148, 84, 0.3);
+      box-shadow: 0 15px 30px rgba(0, 0, 0, 0.2);
+    }
+
+    .stat-card-value {
+      font-size: 2.5rem;
+      font-weight: 800;
+      margin-bottom: 8px;
+      line-height: 1;
+    }
+
+    .stat-card-label {
+      font-size: 0.85rem;
+      opacity: 0.8;
+      text-transform: uppercase;
+      letter-spacing: 1px;
+      font-weight: 600;
+    }
+
+    .money-card .stat-card-value {
+      color: var(--money-color);
+    }
+
+    .points-card .stat-card-value {
+      color: var(--points-color);
+    }
+
+    .auction-card .stat-card-value {
+      color: var(--gold-primary);
+    }
+
+    .error {
+      background: rgba(231, 76, 60, 0.1);
+      border: 1px solid rgba(231, 76, 60, 0.3);
+      border-radius: 10px;
+      padding: 12px;
+      margin-top: 15px;
+      font-size: 0.9rem;
+      text-align: center;
+    }
+
+    .muted {
+      opacity: 0.6;
+      font-style: italic;
+    }
+
+    .current-auction-details {
+      text-align: left;
+      margin-bottom: 20px;
+    }
+
+    .current-auction-details p {
+      margin-bottom: 8px;
+      font-size: 1.1rem;
+    }
+
+    .admin-buttons {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 15px;
+    }
+
+    .login-container {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      min-height: 100vh;
+      padding: 20px;
+    }
+
+    .login-container .header {
+      margin-bottom: 50px;
+      width: 100%;
+      max-width: 600px;
+    }
+
+    .login-card {
+      background: linear-gradient(135deg, rgba(44, 28, 12, 0.8), rgba(26, 18, 8, 0.9));
+      backdrop-filter: blur(20px);
+      border-radius: 22px;
+      border: 1px solid rgba(184, 148, 84, 0.15);
+      padding: 50px 40px;
+      box-shadow: 0 25px 50px rgba(0, 0, 0, 0.3), inset 0 1px 0 rgba(255, 255, 255, 0.05);
+      width: 100%;
+      max-width: 500px;
+      text-align: center;
+    }
+
+    .login-card h2 {
+      font-family: 'Playfair Display', serif;
+      font-weight: 600;
+      font-size: 2rem;
+      margin-bottom: 30px;
+      color: var(--cream-light);
+    }
+
+    .login-form {
+      display: flex;
+      flex-direction: column;
+      gap: 25px;
+    }
+
+    .admin-section {
+      margin-bottom: 35px;
+    }
+
+    .admin-section:last-child {
+      margin-bottom: 0;
+    }
+
+    .auction-info {
+      padding: 20px;
+      background: rgba(61, 124, 79, 0.1);
+      border-radius: 16px;
+      margin-bottom: 20px;
+      text-align: center;
+    }
+
+    .scroll {
+      max-height: 300px;
+      overflow-y: auto;
+      padding-right: 10px;
+    }
+
+    @media (max-width: 768px) {
+
+      .row,
+      .admin-buttons,
+      .stats-grid,
+      .animals-grid {
+        grid-template-columns: 1fr;
+      }
+
+      .header {
+        flex-direction: column;
+        text-align: center;
+        gap: 25px;
+      }
+
+      .admin-badge {
+        min-width: auto;
+        width: 100%;
+      }
+    }
+  </style>
+</head>
+
+<body>
+  <div class="wood-background"></div>
+
+  <div class="container">
+    <!-- Admin Login Screen -->
+    <div id="admin-login" class="login-container">
+      <div class="header">
+        <div class="header-content">
+          <h1>Farm Auction • Admin Command Center</h1>
+          <p>Administrator Access</p>
+        </div>
+      </div>
+
+      <div class="login-card">
+        <h2>Administrator Login</h2>
+        <form id="admin-login-form" class="login-form">
+          <div class="form-group">
+            <label for="admin-password">Admin Password</label>
+            <input id="admin-password" name="password" type="password" placeholder="Enter admin password" required />
+          </div>
+          <button type="submit" class="btn">Login</button>
+          <div id="admin-login-error" class="error" role="alert"></div>
+        </form>
+      </div>
+    </div>
+
+    <!-- Admin Dashboard (Hidden until login) -->
+    <div id="admin-dashboard" style="display: none;">
+      <div class="header">
+        <div class="header-content">
+          <h1>Farm Auction • Admin Command Center</h1>
+          <p>Manage auctions and game state</p>
+        </div>
+        <div class="admin-badge">
+          <div class="badge-icon">🏛️</div>
+          <div class="badge-text">
+            Administrator Access<br>
+            <span>Full Control</span>
+          </div>
+        </div>
+      </div>
+
+      <div class="main-grid">
+        <!-- Left Column -->
+        <div>
+          <!-- Start New Auction -->
+          <div class="card admin-section">
+            <h2>Start New Auction</h2>
+            <p style="margin-bottom: 25px; opacity: 0.85; line-height: 1.6;">
+              Select an animal, set starting price, and choose auction type.
+            </p>
+
+            <!-- Animal Image Grid -->
+            <div class="animals-grid" id="animals-grid">
+              <!-- Animal cards will be populated by JavaScript -->
+            </div>
+
+            <form id="auction-start-form">
+              <!-- Hidden select for original functionality -->
+              <select id="animal-select" style="display: none;" required>
+                <option value="">Choose an animal...</option>
+                <option value="cow">🐄 Cow (Female) - 10 points</option>
+                <option value="bull">🐂 Bull (Male) - 15 points</option>
+                <option value="goat">🐐 Goat (Female) - 5 points</option>
+                <option value="sheep">🐑 Sheep (Male) - 10 points</option>
+                <option value="chicken">🐔 Chicken (Female) - 3 points</option>
+                <option value="rooster">🐓 Rooster (Male) - 5 points</option>
+                <option value="doe">🦌 Doe (Female) - 8 points</option>
+                <option value="buck">🦌 Buck (Male) - 12 points</option>
+                <option value="cat">🐱 Cat (Female) - 4 points</option>
+                <option value="dog">🐶 Dog (Male) - 6 points</option>
+              </select>
+
+              <div class="row">
+                <div class="form-group">
+                  <label for="starting-price">Starting Price ($)</label>
+                  <input id="starting-price" type="number" min="1" step="1" value="10" required />
+                </div>
+
+                <div class="form-group">
+                  <label for="auction-type">Auction Type</label>
+                  <select id="auction-type" required>
+                    <option value="normal">Normal Auction (Animal visible)</option>
+                    <option value="blind">Blind Auction (Animal hidden)</option>
+                    <option value="switch">Normal + Switch (Admin sets switch target)</option>
+                  </select>
+                </div>
+              </div>
+
+              <div id="switch-target-wrapper" style="display: none; margin-bottom: 20px;">
+                <div class="form-group">
+                  <label for="switch-target">Switch Target (admin picks the alternative)</label>
+                  <select id="switch-target">
+                    <option value="">Choose switch target...</option>
+
+                  </select>
+                </div>
+              </div>
+
+              <button type="submit" class="btn" id="start-auction-btn">Start Auction</button>
+              <div id="auction-start-error" class="error" role="alert"></div>
+            </form>
+          </div>
+
+          <!-- Current Auction Control -->
+          <div class="card admin-section">
+            <h2>Current Auction</h2>
+            <div id="current-auction-info" class="auction-info">
+              <p class="muted">No active auction</p>
+            </div>
+            <div id="auction-controls" style="display: none;">
+              <div class="current-auction-details">
+                <p><strong>Animal:</strong> <span id="current-animal">—</span></p>
+                <p><strong>Type:</strong> <span id="current-auction-type">—</span></p>
+                <p><strong>Current Price:</strong> $<span id="current-auction-price">—</span></p>
+                <p><strong>Highest Bidder:</strong> <span id="current-highest-bidder">—</span></p>
+              </div>
+              <div class="admin-buttons">
+                <button id="stop-auction-btn" class="btn">Stop Auction</button>
+                <button id="cancel-auction-btn" class="btn btn-danger">Cancel Auction</button>
+                <button id="reveal-animal-btn" class="btn"
+                  style="display: none; background: linear-gradient(135deg, #27ae60, #2ecc71); color: white;">Reveal
+                  Animal to All</button>
+              </div>
+            </div>
+          </div>
+        </div>
+        <!-- Right Column -->
+        <div>
+          <!-- Teams Overview -->
+          <div class="card admin-section">
+            <h2>Teams Overview</h2>
+            <p style="margin-bottom: 25px; opacity: 0.85; line-height: 1.6;">
+              Active farming teams with their financial status and animals.
+            </p>
+            <div id="teams-list" class="teams-list scroll">
+              <p class="muted">Loading teams...</p>
+            </div>
+          </div>
+
+          <!-- Buyback Control -->
+          <div class="card admin-section">
+            <h2>Buy Back an Animal</h2>
+            <p style="margin-bottom: 25px; opacity: 0.85; line-height: 1.6;">
+              Offer to purchase an animal back from a team.
+            </p>
+
+            <form id="buyback-form">
+              <div class="form-group">
+                <label for="buyback-team">Select Team</label>
+                <select id="buyback-team" required>
+                  <option value="">Choose a team...</option>
+                </select>
+              </div>
+
+              <div class="form-group">
+                <label for="buyback-animal">Select Animal</label>
+                <select id="buyback-animal" required>
+                  <option value="">Choose an animal...</option>
+                </select>
+              </div>
+
+              <div class="form-group">
+                <label for="buyback-price">Offer Price ($)</label>
+                <input id="buyback-price" type="number" min="1" step="1" value="5" required />
+              </div>
+
+              <button type="submit" class="btn btn-secondary">Send Buyback Offer</button>
+              <div id="buyback-error" class="error" role="alert"></div>
+            </form>
+          </div>
+
+          <!-- Game Statistics -->
+          <div class="card admin-section">
+            <h2>Game Statistics</h2>
+            <div class="stats-grid">
+              <div class="stat-card">
+                <div class="stat-card-value" id="stat-teams">0</div>
+                <div class="stat-card-label">Active Teams</div>
+              </div>
+              <div class="stat-card">
+                <div class="stat-card-value" id="stat-animals">0</div>
+                <div class="stat-card-label">Total Animals</div>
+              </div>
+              <div class="stat-card auction-card">
+                <div class="stat-card-value" id="stat-auction">Idle</div>
+                <div class="stat-card-label">Auction Status</div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script src="/socket.io/socket.io.js"></script>
+  <script src="/admin.js"></script>
+  <script>
+    // Animal data with descriptions and your image paths
+    const animals = [
+      {
+        value: 'cow',
+        name: 'Holstein Cow',
+        gender: 'Female',
+        price: 10,
+        description: 'Premium dairy breed for milk production',
+        image: 'images/cow.jpg'
+      },
+      {
+        value: 'bull',
+        name: 'Angus Bull',
+        gender: 'Male',
+        price: 15,
+        description: 'Prime beef cattle for breeding',
+        image: 'images/bull.webp'
+      },
+      {
+        value: 'goat',
+        name: 'Alpine Goat',
+        gender: 'Female',
+        price: 5,
+        description: 'Reliable milk and cheese producer',
+        image: 'images/sheep.jpeg'
+      },
+      {
+        value: 'sheep',
+        name: 'Merino Ram',
+        gender: 'Male',
+        price: 10,
+        description: 'Wool production and meat source',
+        image: 'images/Ram.webp'
+      },
+      {
+        value: 'chicken',
+        name: 'Rhode Island Red Chicken',
+        gender: 'Female',
+        price: 3,
+        description: 'Excellent egg layer daily',
+        image: 'images/chicken.jpg'
+      },
+      {
+        value: 'rooster',
+        name: 'Leghorn Rooster',
+        gender: 'Male',
+        price: 5,
+        description: 'Flock protection and breeding',
+        image: 'images/rooster.jpg'
+      },
+      {
+        value: 'doe',
+        name: 'White-tailed Doe',
+        gender: 'Female',
+        price: 8,
+        description: 'Graceful, produces offspring yearly',
+        image: 'images/doe.jpg'
+      },
+      {
+        value: 'buck',
+        name: 'Whitetail Buck',
+        gender: 'Male',
+        price: 12,
+        description: 'Majestic, valuable for breeding',
+        image: 'images/Buck.jpg'
+      },
+      {
+        value: 'cat',
+        name: 'Barn Cat',
+        gender: 'Female',
+        price: 4,
+        description: 'Pest control expert for barns',
+        image: 'images/cat.jpg'
+      },
+      {
+        value: 'dog',
+        name: 'Shepherd Dog',
+        gender: 'Male',
+        price: 6,
+        description: 'Herding and farm protection',
+        image: 'images/dog.jpg'
+      }
+    ];
+
+    // Initialize animal cards
+    document.addEventListener('DOMContentLoaded', function () {
+      const animalsGrid = document.getElementById('animals-grid');
+      const animalSelect = document.getElementById('animal-select');
+      const switchTarget = document.getElementById('switch-target');
+      const buybackAnimal = document.getElementById('buyback-animal');
+
+      if (animalsGrid) {
+        animalsGrid.innerHTML = '';
+
+        animals.forEach(animal => {
+          // Create animal card
+          const card = document.createElement('div');
+          card.className = 'animal-card';
+          card.dataset.value = animal.value;
+
+          card.innerHTML = `
+            <div class="animal-icon">
+              <img src="${animal.image}" alt="${animal.name}" 
+                   onerror="this.onerror=null; this.src='https://via.placeholder.com/300x200/4a3118/f8f4e8?text=${animal.name}';">
+            </div>
+            <div class="animal-name">${animal.name}</div>
+            <div class="animal-description">${animal.description}</div>
+            <div class="animal-price">${animal.price}</div>
+          `;
+
+          // Add click handler
+          card.addEventListener('click', function () {
+            // Deselect previous
+            document.querySelectorAll('.animal-card').forEach(c => {
+              c.classList.remove('selected');
+            });
+
+            // Select this card
+            card.classList.add('selected');
+
+            // Update the hidden select for original functionality
+            if (animalSelect) {
+              animalSelect.value = animal.value;
+
+              // Trigger change event for any listeners
+              const event = new Event('change', { bubbles: true });
+              animalSelect.dispatchEvent(event);
+            }
+
+            console.log(`Selected animal: ${animal.name} (${animal.value})`);
+          });
+
+          animalsGrid.appendChild(card);
+
+          // Add to switch target dropdown
+          if (switchTarget) {
+            const option = document.createElement('option');
+            option.value = animal.value;
+            // Added "points" to the text
+            option.textContent = `${animal.name} (${animal.gender}) - ${animal.price} points`;
+            switchTarget.appendChild(option);
+          }
+
+          // Add to buyback animal dropdown
+          if (buybackAnimal) {
+            const option = document.createElement('option');
+            option.value = animal.value;
+            option.textContent = `${animal.name} (${animal.gender})`;
+            buybackAnimal.appendChild(option.cloneNode(true));
+          }
+        });
+
+        console.log('Animal cards populated with images and descriptions');
+      }
+
+      // Show/hide switch target wrapper
+      const auctionType = document.getElementById('auction-type');
+      const switchWrapper = document.getElementById('switch-target-wrapper');
+
+      if (auctionType && switchWrapper) {
+        auctionType.addEventListener('change', function () {
+          if (this.value === 'switch') {
+            switchWrapper.style.display = 'block';
+          } else {
+            switchWrapper.style.display = 'none';
+          }
+        });
+      }
+
+      // Style auction control buttons
+      const stopBtn = document.getElementById('stop-auction-btn');
+      const cancelBtn = document.getElementById('cancel-auction-btn');
+
+      if (stopBtn) {
+        stopBtn.classList.add('btn');
+        cancelBtn.classList.add('btn', 'btn-danger');
+      }
+
+      // Populate buyback team dropdown with placeholder
+      const buybackTeam = document.getElementById('buyback-team');
+      if (buybackTeam) {
+        // Clear existing options
+        buybackTeam.innerHTML = '<option value="">Choose a team...</option>';
+
+        // Add placeholder teams (will be replaced by real data from socket)
+        const placeholderTeams = [
+          'Green Valley Farmers',
+          'Sunrise Collective',
+          'Mountain Herders',
+          'Riverbend Ranch'
+        ];
+
+        placeholderTeams.forEach(team => {
+          const option = document.createElement('option');
+          option.value = team.toLowerCase().replace(/\s+/g, '-');
+          option.textContent = team;
+          buybackTeam.appendChild(option);
+        });
+      }
+
+      // Initialize with login screen
+      if (document.getElementById('admin-dashboard').style.display === 'none') {
+        document.getElementById('admin-login').style.display = 'flex';
+      }
+    });
+  </script>
+</body>
+
+</html>

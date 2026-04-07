@@ -1,0 +1,487 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Farm Auction • Login</title>
+
+  <!-- Premium Typography -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link
+    href="https://fonts.googleapis.com/css2?family=Fraunces:ital,opsz,wght@0,9..144,300;0,9..144,600;1,9..144,300&family=Manrope:wght@400;500;700&display=swap"
+    rel="stylesheet">
+
+
+  <style>
+    :root {
+      /* Palette: Modern Harvest */
+      --deep-green: #1a2f23;
+      --moss: #2d4a36;
+      --gold: #d4a373;
+      --wheat: #faedcd;
+      --cream: #fefae0;
+      --soil: #4a3b32;
+
+      --card-bg: rgba(255, 255, 255, 0.92);
+      --input-bg: rgba(26, 47, 35, 0.04);
+      --focus-ring: #d4a373;
+    }
+
+    * {
+      box-sizing: border-box;
+      outline: none;
+    }
+
+    body {
+      margin: 0;
+      height: 100vh;
+      font-family: 'Manrope', sans-serif;
+      background-color: var(--deep-green);
+      color: var(--deep-green);
+      overflow: hidden;
+      display: grid;
+      place-items: center;
+      position: relative;
+    }
+
+    /* --- Dynamic Background --- */
+    /* Abstract rolling fields */
+    .field-layer {
+      position: absolute;
+      bottom: 0;
+      left: 0;
+      width: 100%;
+      height: 60%;
+      background: linear-gradient(180deg, rgba(212, 163, 115, 0.2) 0%, rgba(45, 74, 54, 0.8) 100%);
+      transform-origin: bottom;
+      z-index: 0;
+      clip-path: ellipse(150% 100% at 50% 100%);
+    }
+
+    .sun-glow {
+      position: absolute;
+      top: -20%;
+      right: -10%;
+      width: 800px;
+      height: 800px;
+      background: radial-gradient(circle, rgba(212, 163, 115, 0.4) 0%, transparent 70%);
+      filter: blur(60px);
+      z-index: 0;
+      animation: pulsate 10s infinite alternate ease-in-out;
+    }
+
+    /* Grain Texture Overlay for that "rustic" feel but modern */
+    body::before {
+      content: "";
+      position: fixed;
+      inset: 0;
+      background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 400 400' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noiseFilter'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noiseFilter)' opacity='0.08'/%3E%3C/svg%3E");
+      pointer-events: none;
+      z-index: 100;
+      opacity: 0.6;
+    }
+
+    @keyframes pulsate {
+      0% {
+        opacity: 0.5;
+        transform: scale(1);
+      }
+
+      100% {
+        opacity: 0.8;
+        transform: scale(1.1);
+      }
+    }
+
+    /* --- Main Split Layout --- */
+    .layout {
+      position: relative;
+      z-index: 10;
+      display: flex;
+      width: 90%;
+      max-width: 1000px;
+      height: 600px;
+      background: var(--card-bg);
+      border-radius: 32px;
+      box-shadow:
+        0 40px 80px -20px rgba(0, 0, 0, 0.5),
+        0 0 0 1px rgba(255, 255, 255, 0.4);
+      overflow: hidden;
+    }
+
+    /* Left Side: Illustration / Brand */
+    .visual-side {
+      flex: 1;
+      background: var(--moss);
+      position: relative;
+      display: flex;
+      flex-direction: column;
+      justify-content: space-between;
+      padding: 40px;
+      overflow: hidden;
+      color: var(--wheat);
+    }
+
+    .visual-side::after {
+      content: "";
+      position: absolute;
+      inset: 0;
+      background:
+        linear-gradient(135deg, rgba(255, 255, 255, 0.1) 0%, transparent 100%),
+        radial-gradient(circle at 100% 100%, rgba(212, 163, 115, 0.4), transparent 50%);
+    }
+
+    .visual-content {
+      position: relative;
+      z-index: 2;
+    }
+
+    .brand-large {
+      font-family: 'Fraunces', serif;
+      font-size: 3.5rem;
+      font-weight: 300;
+      font-variation-settings: "SOFT" 100, "WONK" 1;
+      line-height: 1.1;
+      margin: 0;
+    }
+
+    .brand-large span {
+      display: block;
+      font-style: italic;
+      color: var(--gold);
+      font-weight: 600;
+      transform: translateX(20px);
+    }
+
+    .barn-illustration {
+      margin-top: 40px;
+      width: 100%;
+      max-width: 400px;
+      /* Much larger */
+      height: auto;
+      aspect-ratio: 2/1;
+      color: var(--wheat);
+      opacity: 0.9;
+      transform: translateX(0);
+    }
+
+    .barn-illustration svg {
+      width: 100%;
+      height: 100%;
+      overflow: visible;
+    }
+
+    .quote {
+      font-family: 'Manrope', sans-serif;
+      font-size: 0.95rem;
+      opacity: 0.8;
+      line-height: 1.6;
+      max-width: 300px;
+    }
+
+    /* Abstract Plant Shapes */
+    .leaf {
+      position: absolute;
+      background: var(--gold);
+      opacity: 0.1;
+      border-radius: 0 100px 0 100px;
+      z-index: 1;
+    }
+
+    .leaf-1 {
+      width: 200px;
+      height: 200px;
+      top: -50px;
+      right: -50px;
+      transform: rotate(10deg);
+    }
+
+    .leaf-2 {
+      width: 300px;
+      height: 300px;
+      bottom: -100px;
+      left: -50px;
+      transform: rotate(45deg);
+      border-radius: 100px 0 100px 0;
+      background: #15251b;
+    }
+
+    /* Right Side: Login Form */
+    .login-side {
+      flex: 1;
+      padding: 60px 50px;
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+      position: relative;
+    }
+
+    .login-header h2 {
+      font-family: 'Fraunces', serif;
+      font-size: 2rem;
+      color: var(--deep-green);
+      margin: 0 0 10px 0;
+    }
+
+    .login-header p {
+      color: #6b7280;
+      margin: 0 0 40px 0;
+      font-size: 0.95rem;
+    }
+
+    .form-group {
+      margin-bottom: 24px;
+      position: relative;
+    }
+
+    label {
+      display: block;
+      font-size: 0.8rem;
+      font-weight: 700;
+      color: var(--moss);
+      margin-bottom: 8px;
+      text-transform: uppercase;
+      letter-spacing: 1px;
+    }
+
+    input {
+      width: 100%;
+      padding: 16px 20px;
+      border: 2px solid transparent;
+      background: var(--input-bg);
+      border-radius: 12px;
+      font-family: 'Manrope', sans-serif;
+      font-weight: 600;
+      font-size: 1rem;
+      color: var(--deep-green);
+      transition: all 0.2s ease;
+    }
+
+    input:focus {
+      background: #fff;
+      border-color: var(--focus-ring);
+      box-shadow: 0 4px 12px rgba(212, 163, 115, 0.15);
+    }
+
+    button {
+      width: 100%;
+      padding: 18px;
+      border: none;
+      border-radius: 12px;
+      background: var(--deep-green);
+      color: var(--wheat);
+      font-family: 'Manrope', sans-serif;
+      font-weight: 700;
+      font-size: 1rem;
+      cursor: pointer;
+      transition: all 0.3s ease;
+      margin-top: 10px;
+      box-shadow: 0 10px 20px -5px rgba(26, 47, 35, 0.4);
+    }
+
+    button:hover {
+      background: var(--moss);
+      transform: translateY(-2px);
+      box-shadow: 0 15px 30px -5px rgba(26, 47, 35, 0.5);
+    }
+
+    .error-msg {
+      margin-top: 15px;
+      padding: 12px;
+      border-radius: 8px;
+      background: #fee2e2;
+      color: #991b1b;
+      font-size: 0.9rem;
+      font-weight: 600;
+      display: none;
+      text-align: center;
+    }
+
+    /* Mobile Responsiveness */
+    @media (max-width: 800px) {
+      .layout {
+        flex-direction: column;
+        height: auto;
+        min-height: 100vh;
+        width: 100%;
+        border-radius: 0;
+        max-width: none;
+      }
+
+      .visual-side {
+        flex: 0 0 140px;
+        padding: 20px;
+        justify-content: center;
+        align-items: center;
+      }
+
+      .barn-illustration,
+      .quote {
+        display: none;
+      }
+
+      .brand-large {
+        font-size: 2rem;
+        text-align: center;
+        width: 100%;
+        margin-top: 10px;
+      }
+
+      .brand-large span {
+        display: inline;
+        margin-left: 10px;
+        transform: none;
+      }
+
+      .login-side {
+        padding: 30px 20px;
+        flex: 1;
+        justify-content: flex-start;
+      }
+
+      /* Better touch targets & prevent iOS zoom */
+      input,
+      button {
+        min-height: 50px;
+        font-size: 16px;
+      }
+
+      .login-header {
+        margin-top: 10px;
+        text-align: center;
+      }
+    }
+  </style>
+</head>
+
+<body>
+
+  <div class="sun-glow"></div>
+  <div class="field-layer"></div>
+
+  <div class="layout">
+    <!-- Brand Visual -->
+    <div class="visual-side">
+      <div class="leaf leaf-1"></div>
+      <div class="leaf leaf-2"></div>
+
+      <div class="visual-content">
+        <h1 class="brand-large">The Farm <br><span>Auction</span></h1>
+
+        <!-- Barn Illustration -->
+        <div class="barn-illustration">
+          <svg viewBox="0 0 200 100" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"
+            stroke-linejoin="round">
+            <!-- Rolling Hills -->
+            <path d="M10 85 C 50 80, 80 95, 120 85 C 160 75, 180 85, 190 85" stroke-opacity="0.5" />
+
+            <!-- Barn Structure -->
+            <path d="M45 85 L45 50 L75 30 L105 50 L105 85" />
+            <path d="M45 50 L105 50" stroke-opacity="0.5" /> <!-- Loft line -->
+            <path d="M75 30 L75 50" stroke-opacity="0.3" /> <!-- Detail -->
+
+            <!-- Silo -->
+            <path d="M115 85 L115 45 C 115 40, 135 40, 135 45 L135 85" />
+            <path d="M115 55 L135 55" stroke-opacity="0.5" />
+
+            <!-- Windmill / Sun hint -->
+            <circle cx="160" cy="35" r="8" stroke-opacity="0.4" />
+            <path d="M160 27 L160 43 M152 35 L168 35" stroke-opacity="0.4" />
+          </svg>
+        </div>
+      </div>
+
+      <div class="visual-content quote">
+        "Secure the best livestock, build your legacy, and outbid the competition."
+      </div>
+    </div>
+
+    <!-- Login Form -->
+    <div class="login-side">
+      <div class="login-header">
+        <h2>Welcome Back</h2>
+        <p>Please enter your team credentials to access the auction floor.</p>
+      </div>
+
+      <form id="login-form">
+        <div class="form-group">
+          <label for="username">Team ID</label>
+          <input type="text" id="username" placeholder="e.g. Team 1" autocomplete="off">
+        </div>
+
+        <div class="form-group">
+          <label for="password">Passkey</label>
+          <input type="password" id="password" placeholder="••••••••" autocomplete="off">
+        </div>
+
+        <button type="submit">Enter Auction</button>
+        <div id="login-error" class="error-msg"></div>
+      </form>
+    </div>
+  </div>
+
+  <script>
+    // ---------------------------------------------------------
+    // LOGIN LOGIC (Strictly Preserved)
+    // ---------------------------------------------------------
+
+    const TEAMS_LIST = ["falcon", "stallion", "lynx", "bison", "viper", "jaguar", "orca", "wolf", "panther", "raven"];
+    const TEAM_MAP = new Set(TEAMS_LIST);
+
+    const form = document.getElementById("login-form");
+    const err = document.getElementById("login-error");
+    const uEl = document.getElementById("username");
+    const pEl = document.getElementById("password");
+
+    function showError(msg) {
+      err.textContent = msg;
+      err.style.display = "block";
+    }
+    function clearError() {
+      err.textContent = "";
+      err.style.display = "none";
+    }
+
+    function stash(u, p) {
+      try {
+        sessionStorage.setItem("fa_u", u);
+        sessionStorage.setItem("fa_p", p);
+        sessionStorage.setItem("fa_ts", String(Date.now()));
+      } catch (e) { }
+    }
+
+    form.addEventListener("submit", (e) => {
+      e.preventDefault();
+      clearError();
+
+      const uRaw = (uEl.value || "").trim();
+      const pRaw = (pEl.value || "").trim();
+      const u = uRaw.toLowerCase();
+
+      if (!uRaw || !pRaw) {
+        showError("Please enter your username and password.");
+        return;
+      }
+
+      if (u === "admin" && pRaw === "rriadmin") {
+        stash(uRaw, pRaw);
+        window.location.href = "/admin.html";
+        return;
+      }
+      if (u === "public" && pRaw === "public") {
+        // Public view does not need to authenticate
+        window.location.href = "/public.html";
+        return;
+      }
+
+      // General Team Login Logic
+      // We pass the raw username/password to user.html, which will validate with the server.
+      stash(uRaw, pRaw);
+      window.location.href = "/user.html";
+    });
+  </script>
+</body>
+
+</html>
