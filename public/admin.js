@@ -396,15 +396,15 @@ function populateBuybackAnimals(team) {
 function getAnimalDataFromType(type) {
   const animalsMap = {
     cow: { name: "Cow", gender: "Female", points: 85 },
-    bull: { name: "Angus Bull", gender: "Male", points: 65 },
-    goat: { name: "Alpine Goat", gender: "Female", points: 45 },
-    sheep: { name: "Merino Ram", gender: "Male", points: 55 },
-    chicken: { name: "Rhode Island Red Chicken", gender: "Female", points: 12 },
-    rooster: { name: "Leghorn Rooster", gender: "Male", points: 8 },
-    doe: { name: "White-tailed Doe", gender: "Female", points: 60 },
-    buck: { name: "Whitetail Buck", gender: "Male", points: 40 },
-    cat: { name: "Barn Cat", gender: "Female", points: 15 },
-    dog: { name: "Shepherd Dog", gender: "Male", points: 25 }
+    bull: { name: "Bull", gender: "Male", points: 65 },
+    goat: { name: "Sheep", gender: "Female", points: 45 },
+    sheep: { name: "Ram", gender: "Male", points: 55 },
+    chicken: { name: "Chicken", gender: "Female", points: 12 },
+    rooster: { name: "Rooster", gender: "Male", points: 8 },
+    doe: { name: "Doe", gender: "Female", points: 60 },
+    buck: { name: "Buck", gender: "Male", points: 40 },
+    cat: { name: "Cat", gender: "Female", points: 15 },
+    dog: { name: "Dog", gender: "Male", points: 25 }
   };
 
   return animalsMap[type] || null;

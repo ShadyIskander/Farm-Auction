@@ -19,15 +19,15 @@ const animalImages = {
 // ANIMAL DISPLAY NAMES
 const animalDisplayNames = {
   cow: "Cow",
-  bull: "Angus Bull",
-  goat: "Alpine Goat",
-  sheep: "Merino Ram",
-  chicken: "Rhode Island Red Chicken",
-  rooster: "Leghorn Rooster",
-  doe: "White-tailed Doe",
-  buck: "Whitetail Buck",
-  cat: "Barn Cat",
-  dog: "Shepherd Dog"
+  bull: "Bull",
+  goat: "Sheep",
+  sheep: "Ram",
+  chicken: "Chicken",
+  rooster: "Rooster",
+  doe: "Doe",
+  buck: "Buck",
+  cat: "Cat",
+  dog: "Dog"
 };
 
 // Connect as public viewer

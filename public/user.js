@@ -91,15 +91,15 @@ function getAnimalImage(type) {
 function getAnimalData(type) {
   const animals = {
     cow: { type: "cow", gender: "female", baseValue: 10, displayName: "Cow" },
-    bull: { type: "bull", gender: "male", baseValue: 15, displayName: "Angus Bull" },
-    goat: { type: "goat", gender: "female", baseValue: 5, displayName: "Alpine Goat" },
+    bull: { type: "bull", gender: "male", baseValue: 15, displayName: "Bull" },
+    goat: { type: "goat", gender: "female", baseValue: 5, displayName: "Sheep" },
     sheep: { type: "sheep", gender: "male", baseValue: 10, displayName: "Merino Sheep" },
     chicken: { type: "chicken", gender: "female", baseValue: 3, displayName: "Rhode Island Red" },
-    rooster: { type: "rooster", gender: "male", baseValue: 5, displayName: "Leghorn Rooster" },
-    doe: { type: "doe", gender: "female", baseValue: 8, displayName: "White-tailed Doe" },
-    buck: { type: "buck", gender: "male", baseValue: 12, displayName: "Whitetail Buck" },
-    cat: { type: "cat", gender: "female", baseValue: 4, displayName: "Barn Cat" },
-    dog: { type: "dog", gender: "male", baseValue: 6, displayName: "Shepherd Dog" },
+    rooster: { type: "rooster", gender: "male", baseValue: 5, displayName: "Rooster" },
+    doe: { type: "doe", gender: "female", baseValue: 8, displayName: "Doe" },
+    buck: { type: "buck", gender: "male", baseValue: 12, displayName: "Buck" },
+    cat: { type: "cat", gender: "female", baseValue: 4, displayName: "Cat" },
+    dog: { type: "dog", gender: "male", baseValue: 6, displayName: "Dog" },
   };
   return animals[type] || { displayName: "Unknown", baseValue: 0 };
 }
