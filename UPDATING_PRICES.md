@@ -26,7 +26,7 @@ This controls what players see on their dashboard.
 // Example in public/user.js
 function getAnimalData(type) {
   const animals = {
-    cow: { type: "cow", gender: "female", baseValue: 20, displayName: "Holstein Cow" },
+    cow: { type: "cow", gender: "female", baseValue: 20, displayName: "Cow" },
     // ...
   };
   // ...
@@ -43,7 +43,7 @@ This controls what you see on the big screen.
 // Example in public/admin.js
 function getAnimalDataFromType(type) {
   const animalsMap = {
-    cow: { name: "Holstein Cow", gender: "Female", points: 20 },
+    cow: { name: "Cow", gender: "Female", points: 20 },
     // ...
   };
   // ...

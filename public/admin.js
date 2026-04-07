@@ -395,7 +395,7 @@ function populateBuybackAnimals(team) {
 // Helper function to get animal data from type
 function getAnimalDataFromType(type) {
   const animalsMap = {
-    cow: { name: "Holstein Cow", gender: "Female", points: 85 },
+    cow: { name: "Cow", gender: "Female", points: 85 },
     bull: { name: "Angus Bull", gender: "Male", points: 65 },
     goat: { name: "Alpine Goat", gender: "Female", points: 45 },
     sheep: { name: "Merino Ram", gender: "Male", points: 55 },

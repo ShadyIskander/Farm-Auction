@@ -18,7 +18,7 @@ const animalImages = {
 
 // ANIMAL DISPLAY NAMES
 const animalDisplayNames = {
-  cow: "Holstein Cow",
+  cow: "Cow",
   bull: "Angus Bull",
   goat: "Alpine Goat",
   sheep: "Merino Ram",

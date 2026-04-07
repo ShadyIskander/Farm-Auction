@@ -90,7 +90,7 @@ function getAnimalImage(type) {
 
 function getAnimalData(type) {
   const animals = {
-    cow: { type: "cow", gender: "female", baseValue: 10, displayName: "Holstein Cow" },
+    cow: { type: "cow", gender: "female", baseValue: 10, displayName: "Cow" },
     bull: { type: "bull", gender: "male", baseValue: 15, displayName: "Angus Bull" },
     goat: { type: "goat", gender: "female", baseValue: 5, displayName: "Alpine Goat" },
     sheep: { type: "sheep", gender: "male", baseValue: 10, displayName: "Merino Sheep" },
