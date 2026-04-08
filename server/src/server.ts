@@ -68,6 +68,14 @@ const emitAdminState = () => {
   });
 };
 
+const emitTradeResolved = (teamId: string, payload: { offerId: string; status: string }) => {
+  sessions.forEach((sess, sid) => {
+    if (sess.teamId === teamId) {
+      io.to(sid).emit("trade:resolved", payload);
+    }
+  });
+};
+
 const emitSwitchOffer = (offer: SwitchOffer | null) => {
   if (!offer) return;
   sessions.forEach((sess, sid) => {
@@ -339,6 +347,7 @@ io.on("connection", (socket: Socket) => {
   socket.on("trade:offer:money", ({ toTeamId, requestedAnimalId, offeredPrice }: { toTeamId?: string; requestedAnimalId?: string; offeredPrice?: number }) => {
     const session = sessions.get(socket.id);
     if (!session?.teamId) { socket.emit("trade:error", { message: "Please login first." }); return; }
+    if (game.getPublicState().auction.isActive) { socket.emit("trade:error", { message: "Trade offers are disabled while an auction is active." }); return; }
     if (typeof toTeamId !== "string" || typeof requestedAnimalId !== "string" || typeof offeredPrice !== "number") {
       socket.emit("trade:error", { message: "Invalid trade parameters." }); return;
     }
@@ -349,12 +358,15 @@ io.on("connection", (socket: Socket) => {
       if (sess.teamId === toTeamId) io.to(sid).emit("trade:incoming", result.offer);
     });
     emitUserState(session.teamId);
+    emitUserState(toTeamId);
+    emitAdminState();
     socket.emit("trade:sent", { offer: result.offer });
   });
 
   socket.on("trade:offer:swap", ({ toTeamId, offeredAnimalId, requestedAnimalId }: { toTeamId?: string; offeredAnimalId?: string; requestedAnimalId?: string }) => {
     const session = sessions.get(socket.id);
     if (!session?.teamId) { socket.emit("trade:error", { message: "Please login first." }); return; }
+    if (game.getPublicState().auction.isActive) { socket.emit("trade:error", { message: "Trade offers are disabled while an auction is active." }); return; }
     if (typeof toTeamId !== "string" || typeof offeredAnimalId !== "string" || typeof requestedAnimalId !== "string") {
       socket.emit("trade:error", { message: "Invalid swap parameters." }); return;
     }
@@ -364,6 +376,8 @@ io.on("connection", (socket: Socket) => {
       if (sess.teamId === toTeamId) io.to(sid).emit("trade:incoming", result.offer);
     });
     emitUserState(session.teamId);
+    emitUserState(toTeamId);
+    emitAdminState();
     socket.emit("trade:sent", { offer: result.offer });
   });
 
@@ -385,6 +399,7 @@ io.on("connection", (socket: Socket) => {
       }
     });
     emitPublicState();
+    emitAdminState();
   });
 
   socket.on("trade:cancel", ({ offerId }: { offerId?: string }) => {
@@ -394,6 +409,33 @@ io.on("connection", (socket: Socket) => {
     const result = game.cancelTradeOffer(session.teamId, offerId);
     if (!result.ok) { socket.emit("trade:error", { message: result.message }); return; }
     emitUserState(session.teamId);
+    // Also refresh all teams (avoids having to identify the counterparty here)
+    sessions.forEach((sess) => {
+      if (sess.teamId) emitUserState(sess.teamId);
+    });
+    emitAdminState();
+  });
+
+  socket.on("admin:trade:cancel", ({ offerId }: { offerId?: string }) => {
+    const session = sessions.get(socket.id);
+    if (!session?.isAdmin) {
+      socket.emit("admin:error", { message: "Admin access required." });
+      return;
+    }
+    if (typeof offerId !== "string") {
+      socket.emit("admin:error", { message: "Invalid offer ID." });
+      return;
+    }
+    const result = game.cancelTradeOfferAsAdmin(offerId);
+    if (!result.ok) {
+      socket.emit("admin:error", { message: result.message });
+      return;
+    }
+    emitTradeResolved(result.offer.fromTeamId, { offerId: result.offer.id, status: "cancelled" });
+    emitTradeResolved(result.offer.toTeamId, { offerId: result.offer.id, status: "cancelled" });
+    emitUserState(result.offer.fromTeamId);
+    emitUserState(result.offer.toTeamId);
+    emitAdminState();
   });
 
   socket.on("disconnect", () => {

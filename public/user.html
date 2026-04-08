@@ -616,6 +616,12 @@
       <button id="tab-trade" class="tab-button" onclick="switchTab('trade')">🤝 Make Offers</button>
     </div>
 
+    <!-- Inline notice shown when a tab is blocked (e.g., trades during an active auction) -->
+    <div id="tab-blocked-banner" style="display:none; margin:12px 0 0 0; padding:10px 12px; border-radius:12px; border:1px solid rgba(252,238,181,0.25); background:rgba(252,238,181,0.08); color:var(--cream);">
+      <strong style="color:var(--gold-primary);">Make Offers is only available between auctions.</strong>
+      <div style="opacity:0.85; margin-top:4px; font-size:0.9rem;">An auction is currently active, so trade offers are temporarily disabled.</div>
+    </div>
+
     <!-- FARM TAB -->
     <div id="tab-content-farm" class="tab-content active">
       <div class="stats-grid">
@@ -642,6 +648,15 @@
         <div id="farm-display" class="farm-grid">
           <p class="muted" id="empty-farm" style="grid-column: 1/-1; text-align: center; padding: 40px;">
             Your barn is empty. Win auctions to populate it!
+          </p>
+        </div>
+      </div>
+
+      <div class="barn-container" style="margin-top: 18px;">
+        <div class="barn-header">My Gadgets</div>
+        <div id="gadget-display" class="farm-grid">
+          <p class="muted" id="empty-gadgets" style="grid-column: 1/-1; text-align: center; padding: 40px;">
+            You don't own any gadgets yet.
           </p>
         </div>
       </div>
@@ -733,53 +748,53 @@
     <!-- TRADE TAB -->
     <div id="tab-content-trade" class="tab-content">
 
-      <!-- Offer Type Selector -->
       <div class="card" style="margin-bottom: 20px;">
         <h2 style="margin-bottom: 16px;">Send a Trade Offer</h2>
-        <div style="display:flex; gap:12px; margin-bottom:20px;">
-          <button id="trade-type-money-btn" class="tab-button active" style="flex:1;" onclick="selectTradeType('money')">💰 Money Offer</button>
-          <button id="trade-type-swap-btn" class="tab-button" style="flex:1;" onclick="selectTradeType('swap')">🔄 Animal Swap</button>
+        <div id="trade-auction-banner" style="display:none; margin-bottom:14px; padding:10px 12px; border-radius:12px; border:1px solid rgba(252,238,181,0.25); background:rgba(252,238,181,0.08); color:var(--cream);">
+          <strong style="color:var(--gold-primary);">Make Offers is only available between auctions.</strong>
+          <div style="opacity:0.85; margin-top:4px; font-size:0.9rem;">An auction is currently active, so trade offers are temporarily disabled.</div>
+        </div>
+        <label>Select Team</label>
+        <select id="trade-team-select" style="width:100%;padding:10px;margin-bottom:14px;background:rgba(10,15,20,0.65);color:var(--cream);border:1px solid rgba(255,255,255,0.18);border-radius:8px;">
+          <option value="">-- Choose a team --</option>
+        </select>
+
+        <div id="trade-team-assets" style="margin-bottom:14px;">
+          <p class="muted">Choose a team to see their animals and gadgets.</p>
         </div>
 
-        <!-- Money Offer Form -->
-        <div id="trade-form-money">
-          <label>Select Team to Offer To</label>
-          <select id="trade-money-team" onchange="loadTeamAnimals('money')" style="width:100%;padding:10px;margin-bottom:14px;background:rgba(255,255,255,0.08);color:inherit;border:1px solid rgba(255,255,255,0.15);border-radius:8px;">
-            <option value="">-- Choose a team --</option>
-          </select>
-
-          <label>Animal You Want (from their farm)</label>
-          <select id="trade-money-animal" style="width:100%;padding:10px;margin-bottom:14px;background:rgba(255,255,255,0.08);color:inherit;border:1px solid rgba(255,255,255,0.15);border-radius:8px;">
-            <option value="">-- Select a team first --</option>
-          </select>
-
-          <label>Your Offer ($)</label>
-          <input id="trade-money-price" type="number" min="1" step="1" placeholder="Enter amount..." style="width:100%;padding:10px;margin-bottom:14px;background:rgba(255,255,255,0.08);color:inherit;border:1px solid rgba(255,255,255,0.15);border-radius:8px;box-sizing:border-box;" />
-
-          <button onclick="sendMoneyOffer()" style="width:100%;">Send Money Offer</button>
-          <p id="trade-money-error" style="color:#e74c3c;margin-top:8px;font-size:0.9rem;"></p>
+        <label style="margin-top:10px;">Payment:</label>
+        <div style="display:flex; flex-direction:column; align-items:flex-start; gap:8px; margin-bottom:12px;">
+          <label style="display:inline-flex; align-items:center; justify-content:flex-start; flex-wrap:nowrap; gap:10px; padding:7px 12px; border:1px solid rgba(255,255,255,0.12); border-radius:999px; background:rgba(0,0,0,0.12); cursor:pointer; text-align:left; width:220px; max-width:100%; box-sizing:border-box;">
+            <input type="radio" name="trade-payment" id="trade-payment-cash" value="cash" checked style="margin:0; width:18px; height:18px; flex:0 0 18px;" />
+            <span style="display:flex; align-items:center; gap:8px; font-weight:700; font-size:0.95rem; line-height:1; white-space:nowrap;">
+              <span style="width:1.2em; display:inline-flex; justify-content:center;">💵</span>
+              <span>Cash</span>
+            </span>
+          </label>
+          <label style="display:inline-flex; align-items:center; justify-content:flex-start; flex-wrap:nowrap; gap:10px; padding:7px 12px; border:1px solid rgba(255,255,255,0.12); border-radius:999px; background:rgba(0,0,0,0.12); cursor:pointer; text-align:left; width:220px; max-width:100%; box-sizing:border-box;">
+            <input type="radio" name="trade-payment" id="trade-payment-swap" value="swap" style="margin:0; width:18px; height:18px; flex:0 0 18px;" />
+            <span style="display:flex; align-items:center; gap:8px; font-weight:700; font-size:0.95rem; line-height:1; white-space:nowrap;">
+              <span style="width:1.2em; display:inline-flex; justify-content:center;">🔄</span>
+              <span>Animal Switch</span>
+            </span>
+          </label>
         </div>
 
-        <!-- Swap Offer Form -->
-        <div id="trade-form-swap" style="display:none;">
-          <label>Select Team to Swap With</label>
-          <select id="trade-swap-team" onchange="loadTeamAnimals('swap')" style="width:100%;padding:10px;margin-bottom:14px;background:rgba(255,255,255,0.08);color:inherit;border:1px solid rgba(255,255,255,0.15);border-radius:8px;">
-            <option value="">-- Choose a team --</option>
-          </select>
+        <div id="trade-payment-cash-panel" style="margin-bottom:14px;">
+          <label>Cash Amount ($)</label>
+          <input id="trade-cash-amount" type="number" min="1" step="1" placeholder="Enter amount..." style="width:100%;padding:10px;margin-bottom:4px;background:rgba(255,255,255,0.08);color:inherit;border:1px solid rgba(255,255,255,0.15);border-radius:8px;box-sizing:border-box;" />
+        </div>
 
+        <div id="trade-payment-swap-panel" style="display:none; margin-bottom:14px;">
           <label>Your Animal (what you're giving)</label>
-          <select id="trade-swap-my-animal" style="width:100%;padding:10px;margin-bottom:14px;background:rgba(255,255,255,0.08);color:inherit;border:1px solid rgba(255,255,255,0.15);border-radius:8px;">
+          <select id="trade-swap-my-animal" style="width:100%;padding:10px;margin-bottom:4px;background:rgba(255,255,255,0.08);color:inherit;border:1px solid rgba(255,255,255,0.15);border-radius:8px;">
             <option value="">-- You have no animals --</option>
           </select>
-
-          <label>Their Animal (what you want)</label>
-          <select id="trade-swap-their-animal" style="width:100%;padding:10px;margin-bottom:14px;background:rgba(255,255,255,0.08);color:inherit;border:1px solid rgba(255,255,255,0.15);border-radius:8px;">
-            <option value="">-- Select a team first --</option>
-          </select>
-
-          <button onclick="sendSwapOffer()" style="width:100%;">Send Swap Offer</button>
-          <p id="trade-swap-error" style="color:#e74c3c;margin-top:8px;font-size:0.9rem;"></p>
         </div>
+
+        <button id="trade-send-btn" onclick="sendTradeOfferUnified()" style="width:100%;">Send Offer</button>
+        <p id="trade-unified-error" style="color:#e74c3c;margin-top:8px;font-size:0.9rem;"></p>
       </div>
 
       <!-- Outgoing Offers -->
@@ -839,6 +854,14 @@
 
   <script src="/socket.io/socket.io.js"></script>
   <script src="/user.js"></script>
+  <style>
+    /* Trade tab: mobile adjustments */
+    @media (max-width: 520px) {
+      #trade-team-assets > div[style*="grid-template-columns"] {
+        grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+      }
+    }
+  </style>
 </body>
 
 </html>

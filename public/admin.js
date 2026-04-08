@@ -24,6 +24,38 @@ window.addEventListener("load", () => {
 let adminState = null;
 let selectedAnimal = null;
 
+function getGadgetImage(type) {
+  const images = {
+    cow_milker: "/images/gadgets/cow_milker.png",
+    bull_harness: "/images/gadgets/bull_harness.png",
+    goat_bell: "/images/gadgets/goat_bell.png",
+    sheep_shears: "/images/gadgets/sheep_shears.png",
+    chicken_nest: "/images/gadgets/chicken_nest.png",
+    rooster_whistle: "/images/gadgets/rooster_whistle.png",
+    doe_saltlick: "/images/gadgets/doe_saltlick.png",
+    buck_antler_oil: "/images/gadgets/buck_antler_oil.png",
+    cat_yarnball: "/images/gadgets/cat_yarnball.png",
+    dog_treats: "/images/gadgets/dog_treats.png",
+  };
+  return images[type] || "/images/gadgets/placeholder.png";
+}
+
+function getGadgetData(type) {
+  const map = {
+    cow_milker: { name: "Cow Milker", emoji: "🪣" },
+    bull_harness: { name: "Bull Harness", emoji: "🧰" },
+    goat_bell: { name: "Goat Bell", emoji: "🔔" },
+    sheep_shears: { name: "Sheep Shears", emoji: "✂️" },
+    chicken_nest: { name: "Chicken Nest", emoji: "🪺" },
+    rooster_whistle: { name: "Rooster Whistle", emoji: "📯" },
+    doe_saltlick: { name: "Doe Salt Lick", emoji: "🧂" },
+    buck_antler_oil: { name: "Buck Antler Oil", emoji: "🧴" },
+    cat_yarnball: { name: "Silk Yarn Ball", emoji: "🧶" },
+    dog_treats: { name: "Dog Treats", emoji: "🦴" },
+  };
+  return map[type] || { name: String(type), emoji: "🧩" };
+}
+
 // Admin Login (if login form exists)
 const adminLoginForm = document.getElementById("admin-login-form");
 if (adminLoginForm) {
@@ -279,6 +311,9 @@ function renderAdminState(state) {
     renderTeams(state.teams);
   }
 
+  // Trade offers (admin can view + cancel)
+  renderTradeOffers(state.allTradeOffers || [], state.teams || []);
+
   // Statistics
   const statTeams = document.getElementById("stat-teams");
   if (statTeams) {
@@ -289,6 +324,58 @@ function renderAdminState(state) {
     state.teams.reduce((sum, team) => sum + (team.farm?.length || 0), 0) : 32; // Fallback to 32
   const statAnimals = document.getElementById("stat-animals");
   if (statAnimals) statAnimals.textContent = totalAnimals;
+}
+
+function renderTradeOffers(offers, teams) {
+  const container = document.getElementById("admin-trade-offers-list");
+  if (!container) return;
+
+  if (!offers || offers.length === 0) {
+    container.innerHTML = '<p class="muted">No trade offers.</p>';
+    return;
+  }
+
+  const teamName = (id) => {
+    const t = (teams || []).find(x => x.id === id);
+    return t ? t.username : "Unknown Team";
+  };
+
+  const sorted = [...offers].sort((a, b) => (b.createdAt || 0) - (a.createdAt || 0));
+
+  container.innerHTML = "";
+  sorted.forEach((o) => {
+    const from = teamName(o.fromTeamId);
+    const to = teamName(o.toTeamId);
+
+    let detail = "";
+    if (o.type === "money") {
+      detail = `Money: ${from} ➜ ${to} ($${o.offeredPrice || 0}) for ${o.requestedAnimalType || "animal"}`;
+    } else {
+      detail = `Swap: ${from} ➜ ${to} (${o.offeredAnimalType || "animal"} ⇄ ${o.requestedAnimalType || "animal"})`;
+    }
+
+    const div = document.createElement("div");
+    div.style.cssText = "display:flex;justify-content:space-between;align-items:center;padding:12px;margin-bottom:8px;background:rgba(255,255,255,0.05);border-radius:8px;gap:10px;";
+    const status = String(o.status || "").toUpperCase();
+
+    const canCancel = o.status === "pending";
+    div.innerHTML = `
+      <span style="flex:1;font-size:0.9rem;">
+        <div style="font-weight:700;margin-bottom:4px;">${detail}</div>
+        <div style="opacity:0.8;font-size:0.8rem;">Status: ${status} · ID: ${o.id}</div>
+      </span>
+      ${canCancel ? `<button data-offer-id="${o.id}" style="padding:6px 12px;font-size:0.8rem;background:rgba(231,76,60,0.3);border:1px solid rgba(231,76,60,0.5);color:#e74c3c;border-radius:6px;cursor:pointer;white-space:nowrap;">Cancel</button>` : ""}
+    `;
+    if (canCancel) {
+      const btn = div.querySelector("button");
+      btn.addEventListener("click", () => {
+        if (confirm("Cancel this trade offer?")) {
+          socket.emit("admin:trade:cancel", { offerId: o.id });
+        }
+      });
+    }
+    container.appendChild(div);
+  });
 }
 
 function updateCurrentAuctionDisplay(animalType, price, auctionType, highestBidder = null) {
@@ -335,6 +422,22 @@ function renderTeams(teams) {
   buybackTeam.innerHTML = '<option value="">Choose a team...</option>';
 
   teams.forEach((team, index) => {
+    const gadgets = team.gadgets || [];
+    const gadgetCounts = {};
+    gadgets.forEach((g) => {
+      gadgetCounts[g.type] = (gadgetCounts[g.type] || 0) + 1;
+    });
+    const gadgetThumbs = Object.entries(gadgetCounts).map(([type, count]) => {
+      const gd = getGadgetData(type);
+      const img = getGadgetImage(type);
+      return `
+        <div title="${gd.name} x${count}" style="position:relative;width:28px;height:28px;border-radius:8px;overflow:hidden;border:1px solid rgba(255,255,255,0.14);background:rgba(0,0,0,0.25);">
+          <img src="${img}" alt="${type}" style="width:100%;height:100%;object-fit:cover;" onerror="this.style.display='none'; this.parentElement.innerHTML='${gd.emoji}'; this.parentElement.style.display='flex'; this.parentElement.style.alignItems='center'; this.parentElement.style.justifyContent='center'; this.parentElement.style.fontSize='16px';" />
+          ${count > 1 ? `<div style="position:absolute;bottom:-6px;right:-6px;min-width:16px;height:16px;padding:0 4px;border-radius:999px;background:rgba(0,0,0,0.65);border:1px solid rgba(255,255,255,0.18);font-size:10px;display:flex;align-items:center;justify-content:center;">${count}</div>` : ""}
+        </div>
+      `;
+    }).join("");
+
     // Add to teams list display
     const teamItem = document.createElement("div");
     teamItem.className = "team-item";
@@ -346,6 +449,9 @@ function renderTeams(teams) {
           <div class="team-money">${team.balance || 0}</div>
           <div class="team-points">${team.farmValue || 0}</div>
           <div class="team-animals">${team.farm?.length || 0} animals</div>
+        </div>
+        <div style="margin-top:10px;display:flex;flex-wrap:wrap;gap:6px;opacity:0.95;">
+          ${gadgetThumbs || '<span style="opacity:0.7;font-size:0.8rem;">No gadgets</span>'}
         </div>
       </div>
     `;

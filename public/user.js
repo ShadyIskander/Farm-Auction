@@ -7,6 +7,13 @@ let switchChoiceData = null;
 let activeCredentials = null; // Store for silent re-login
 let activeTradeOffer = null;  // incoming trade offer pending response
 let currentTradeType = "money";
+let selectedTradeTargetTeamId = null;
+let selectedRequestedAnimalId = null;
+let selectedRequestedAnimalType = null;
+let isAuctionActiveNow = false;
+
+// used by the "blocked tab" banner auto-hide
+window.__faBlockedTimer = window.__faBlockedTimer || null;
 
 // --- CONNECTION STABILITY ---
 
@@ -76,18 +83,50 @@ window.addEventListener("load", () => {
 
 function getAnimalImage(type) {
   const images = {
-    cow: 'images/cow.jpg',
-    bull: 'images/bull.webp',
-    goat: 'images/sheep.jpeg',
-    sheep: 'images/Ram.webp',
-    chicken: 'images/chicken.jpg',
-    rooster: 'images/rooster.jpg',
-    doe: 'images/doe.jpg',
-    buck: 'images/Buck.jpg', // Matching case-sensitivity in your admin code
-    cat: 'images/cat.jpg',
-    dog: 'images/dog.jpg'
+    cow: '/images/cow.jpg',
+    bull: '/images/bull.webp',
+    goat: '/images/sheep.jpeg',
+    sheep: '/images/Ram.webp',
+    chicken: '/images/chicken.jpg',
+    rooster: '/images/rooster.jpg',
+    doe: '/images/doe.jpg',
+    buck: '/images/Buck.jpg', // Matching case-sensitivity in your admin code
+    cat: '/images/cat.jpg',
+    dog: '/images/dog.jpg'
   };
   return images[type] || 'images/mystery.jpg';
+}
+
+function getGadgetImage(type) {
+  const images = {
+    cow_milker: "/images/gadgets/cow_milker.png",
+    bull_harness: "/images/gadgets/bull_harness.png",
+    goat_bell: "/images/gadgets/goat_bell.png",
+    sheep_shears: "/images/gadgets/sheep_shears.png",
+    chicken_nest: "/images/gadgets/chicken_nest.png",
+    rooster_whistle: "/images/gadgets/rooster_whistle.png",
+    doe_saltlick: "/images/gadgets/doe_saltlick.png",
+    buck_antler_oil: "/images/gadgets/buck_antler_oil.png",
+    cat_yarnball: "/images/gadgets/cat_yarnball.png",
+    dog_treats: "/images/gadgets/dog_treats.png",
+  };
+  return images[type] || "/images/gadgets/placeholder.png";
+}
+
+function getGadgetData(type) {
+  const map = {
+    cow_milker: { name: "Cow Milker", emoji: "🪣" },
+    bull_harness: { name: "Bull Harness", emoji: "🧰" },
+    goat_bell: { name: "Goat Bell", emoji: "🔔" },
+    sheep_shears: { name: "Sheep Shears", emoji: "✂️" },
+    chicken_nest: { name: "Chicken Nest", emoji: "🪺" },
+    rooster_whistle: { name: "Rooster Whistle", emoji: "📯" },
+    doe_saltlick: { name: "Doe Salt Lick", emoji: "🧂" },
+    buck_antler_oil: { name: "Buck Antler Oil", emoji: "🧴" },
+    cat_yarnball: { name: "Silk Yarn Ball", emoji: "🧶" },
+    dog_treats: { name: "Dog Treats", emoji: "🦴" },
+  };
+  return map[type] || { name: String(type), emoji: "🧩" };
 }
 
 function getAnimalData(type) {
@@ -174,6 +213,10 @@ socket.on("user:state", (state) => {
   console.log("Full User State Received", state);
   currentState = state;
   renderState(state);
+  // Keep trade tab assets in sync if a team is already selected
+  if (selectedTradeTargetTeamId) {
+    renderTradeTargetAssets();
+  }
 });
 
 // Update for public game state (auction status, highest bidder, etc.)
@@ -278,9 +321,10 @@ function renderState(state) {
     setText("player-locked", `$${team.lockedBid}`);
 
     renderFarm(team.farm);
+    renderGadgets(team.gadgets || []);
 
     // Update trade tab dropdowns and outgoing offers
-    populateTeamDropdowns(state);
+    populateUnifiedTradeTeams(state);
     renderOutgoingOffers(state.outgoingTradeOffers || [], state.teams);
 
     // Check for incoming trade offers that need a popup (if modal not already open)
@@ -330,8 +374,51 @@ function renderState(state) {
     }
 
     renderBidHistory(state.bidHistory || [], state.teams);
+
+    // Disable trades while auction is active (focus + fairness)
+    updateTradeAvailability(!!(state.auction && state.auction.isActive));
   } catch (e) {
     console.error("Render Error:", e);
+  }
+}
+
+function updateTradeAvailability(isAuctionActive) {
+  const tradeTabBtn = document.getElementById("tab-trade");
+  const tradeTab = document.getElementById("tab-content-trade");
+  if (!tradeTabBtn || !tradeTab) return;
+
+  isAuctionActiveNow = !!isAuctionActive;
+
+  const banner = document.getElementById("trade-auction-banner");
+  const sendBtn = document.getElementById("trade-send-btn");
+  const teamSel = document.getElementById("trade-team-select");
+  const cashAmt = document.getElementById("trade-cash-amount");
+  const myAnimalSel = document.getElementById("trade-swap-my-animal");
+  const cashRadio = document.getElementById("trade-payment-cash");
+  const swapRadio = document.getElementById("trade-payment-swap");
+
+  if (isAuctionActive) {
+    tradeTabBtn.style.opacity = "0.45";
+    // Keep clickable so we can show a message; actual trading is also enforced server-side.
+    tradeTabBtn.style.pointerEvents = "auto";
+    tradeTabBtn.title = "Make Offers is only available between auctions.";
+    tradeTabBtn.dataset.disabledByAuction = "true";
+
+    if (banner) banner.style.display = "block";
+    // Disable all trade controls while auction is active
+    [sendBtn, teamSel, cashAmt, myAnimalSel, cashRadio, swapRadio].forEach((el) => {
+      if (el) el.disabled = true;
+    });
+  } else {
+    tradeTabBtn.style.opacity = "1";
+    tradeTabBtn.style.pointerEvents = "auto";
+    tradeTabBtn.title = "";
+    tradeTabBtn.dataset.disabledByAuction = "false";
+
+    if (banner) banner.style.display = "none";
+    [sendBtn, teamSel, cashAmt, myAnimalSel, cashRadio, swapRadio].forEach((el) => {
+      if (el) el.disabled = false;
+    });
   }
 }
 
@@ -379,9 +466,73 @@ function renderFarm(farm) {
   });
 }
 
+function renderGadgets(gadgets) {
+  const gadgetDisplay = document.getElementById("gadget-display");
+  const empty = document.getElementById("empty-gadgets");
+  if (!gadgetDisplay) return;
+
+  if (!gadgets || gadgets.length === 0) {
+    if (empty) empty.style.display = "block";
+    gadgetDisplay.innerHTML = empty ? empty.outerHTML : '<p class="muted" style="grid-column: 1/-1; text-align: center; padding: 40px;">You don\'t own any gadgets yet.</p>';
+    return;
+  }
+
+  if (empty) empty.style.display = "none";
+
+  // count gadgets by type
+  const counts = {};
+  gadgets.forEach(g => {
+    counts[g.type] = (counts[g.type] || 0) + 1;
+  });
+
+  gadgetDisplay.innerHTML = "";
+  Object.entries(counts).forEach(([type, count]) => {
+    const gd = getGadgetData(type);
+    const img = getGadgetImage(type);
+
+    const stall = document.createElement("div");
+    stall.className = "stall";
+    stall.innerHTML = `
+      <div class="animal-icon">
+        <img src="${img}" alt="${type}" style="width:100%; height:100%; object-fit:cover;">
+      </div>
+      <div class="stall-count">${count}</div>
+      <div class="stall-info">
+        <div class="stall-name">${gd.name}</div>
+        <div class="stall-gender" style="opacity:0.8;">Gadget</div>
+      </div>
+    `;
+
+    // fallback to emoji if image missing
+    const imgel = stall.querySelector("img");
+    imgel.addEventListener("error", () => {
+      const icon = stall.querySelector(".animal-icon");
+      if (icon) icon.innerHTML = `<div style="font-size: 2rem; display:flex; align-items:center; justify-content:center; height:100%;">${gd.emoji}</div>`;
+    });
+
+    gadgetDisplay.appendChild(stall);
+  });
+}
+
 // --- Logic Helpers (Pairs, Bids, Tabs) ---
 
 function switchTab(tab) {
+  // If auction is active, DO NOT allow entering Make Offers tab.
+  if (tab === "trade" && isAuctionActiveNow) {
+    const blocked = document.getElementById("tab-blocked-banner");
+    if (blocked) {
+      blocked.style.display = "block";
+      // auto-hide after a short time (keeps UI clean)
+      clearTimeout(window.__faBlockedTimer);
+      window.__faBlockedTimer = setTimeout(() => {
+        blocked.style.display = "none";
+      }, 3500);
+    }
+    return;
+  } else {
+    const blocked = document.getElementById("tab-blocked-banner");
+    if (blocked) blocked.style.display = "none";
+  }
   document.querySelectorAll(".tab-content").forEach((t) => t.classList.remove("active"));
   document.querySelectorAll(".tab-button").forEach((b) => b.classList.remove("active"));
   document.getElementById(`tab-content-${tab}`).classList.add("active");
@@ -479,6 +630,16 @@ socket.on("trade:error", ({ message }) => {
   if (errEl) { errEl.textContent = message; setTimeout(() => errEl.textContent = "", 4000); }
 });
 
+socket.on("trade:resolved", ({ offerId, status }) => {
+  // If the currently-open incoming modal is for an offer that got resolved/cancelled elsewhere,
+  // close it immediately so the user doesn't interact with stale UI.
+  if (activeTradeOffer && activeTradeOffer.id === offerId) {
+    const modal = document.getElementById("trade-modal");
+    if (modal) modal.style.display = "none";
+    activeTradeOffer = null;
+  }
+});
+
 // --- Trade UI Logic ---
 
 function selectTradeType(type) {
@@ -510,6 +671,144 @@ function populateTeamDropdowns(state) {
 
   // Populate my animals for swap
   populateMyAnimals(state);
+}
+
+function populateUnifiedTradeTeams(state) {
+  if (!state) return;
+  const sel = document.getElementById("trade-team-select");
+  if (!sel) return;
+
+  const myId = state.team.id;
+  const teams = state.teams.filter(t => t.id !== myId);
+
+  const prev = sel.value;
+  sel.innerHTML = '<option value="">-- Choose a team --</option>';
+  teams.forEach(t => {
+    const opt = document.createElement("option");
+    opt.value = t.id;
+    opt.textContent = `${t.username} (${t.farm.length} animals, ${(t.gadgets || []).length} gadgets)`;
+    sel.appendChild(opt);
+  });
+  if (prev) sel.value = prev;
+
+  // Ensure my animals list is filled for swap payment
+  populateMyAnimals(state);
+
+  // Wire change handler once
+  if (!sel.dataset.bound) {
+    sel.dataset.bound = "true";
+    sel.addEventListener("change", () => {
+      selectedTradeTargetTeamId = sel.value || null;
+      selectedRequestedAnimalId = null;
+      selectedRequestedAnimalType = null;
+      renderTradeTargetAssets();
+    });
+  }
+
+  // Payment toggle handlers (wire once)
+  const cashRadio = document.getElementById("trade-payment-cash");
+  const swapRadio = document.getElementById("trade-payment-swap");
+  const cashPanel = document.getElementById("trade-payment-cash-panel");
+  const swapPanel = document.getElementById("trade-payment-swap-panel");
+  if (cashRadio && swapRadio && cashPanel && swapPanel && !cashRadio.dataset.bound) {
+    cashRadio.dataset.bound = "true";
+    const toggle = () => {
+      const isCash = cashRadio.checked;
+      cashPanel.style.display = isCash ? "block" : "none";
+      swapPanel.style.display = isCash ? "none" : "block";
+      const errEl = document.getElementById("trade-unified-error");
+      if (errEl) errEl.textContent = "";
+    };
+    cashRadio.addEventListener("change", toggle);
+    swapRadio.addEventListener("change", toggle);
+    toggle();
+  }
+
+  // If there is a selection already, render its assets
+  if (sel.value) {
+    selectedTradeTargetTeamId = sel.value;
+    renderTradeTargetAssets();
+  } else {
+    const container = document.getElementById("trade-team-assets");
+    if (container) container.innerHTML = '<p class="muted">Choose a team to see their animals and gadgets.</p>';
+  }
+}
+
+function renderTradeTargetAssets() {
+  const container = document.getElementById("trade-team-assets");
+  if (!container) return;
+
+  if (!selectedTradeTargetTeamId) {
+    container.innerHTML = '<p class="muted">Choose a team to see their animals and gadgets.</p>';
+    return;
+  }
+
+  // Always use the freshest global state to avoid stale UI (fixes "images only show after refresh")
+  const state = currentState;
+  if (!state || !state.teams) {
+    container.innerHTML = '<p class="muted">Loading team assets...</p>';
+    return;
+  }
+
+  const team = state.teams.find(t => t.id === selectedTradeTargetTeamId);
+  if (!team) {
+    container.innerHTML = '<p class="muted">Team not found.</p>';
+    return;
+  }
+
+  const animals = team.farm || [];
+  const gadgets = team.gadgets || [];
+
+  const selectedStyle = "outline:2px solid var(--gold-primary); box-shadow: 0 0 0 3px rgba(252,238,181,0.15);";
+
+  container.innerHTML = `
+    <div style="margin-bottom:10px; opacity:0.85;">Pick what you want from <strong>${team.username}</strong>:</div>
+    <div style="display:grid; grid-template-columns: repeat(auto-fill, minmax(120px, 1fr)); gap:12px;">
+      ${animals.map(a => {
+        const type = String(a.type).toLowerCase();
+        const img = getAnimalImage(type);
+        const animal = getAnimalData(type);
+        const isSel = selectedRequestedAnimalId === a.id;
+        return `
+          <div class="card" data-animal-id="${a.id}" style="padding:10px; cursor:pointer; background:rgba(255,255,255,0.05); border:1px solid rgba(255,255,255,0.12); ${isSel ? selectedStyle : ""}">
+            <div style="width:100%; height:80px; border-radius:10px; overflow:hidden; margin-bottom:8px; background:rgba(0,0,0,0.25);">
+              <img src="${img}" alt="${type}" style="width:100%; height:100%; object-fit:cover;">
+            </div>
+            <div style="font-weight:800; font-size:0.95rem;">${animal.displayName}</div>
+            <div style="opacity:0.75; font-size:0.8rem;">${animal.baseValue} pts</div>
+          </div>
+        `;
+      }).join("")}
+      ${gadgets.map(g => {
+        const gd = getGadgetData(g.type);
+        const img = getGadgetImage(g.type);
+        return `
+          <div class="card" style="padding:10px; background:rgba(255,255,255,0.03); border:1px dashed rgba(255,255,255,0.12); opacity:0.9;">
+            <div style="width:100%; height:80px; border-radius:10px; overflow:hidden; margin-bottom:8px; background:rgba(0,0,0,0.2); display:flex; align-items:center; justify-content:center;">
+              <img src="${img}" alt="${g.type}" style="width:100%; height:100%; object-fit:cover;" onerror="this.style.display='none'; this.parentElement.innerHTML='${gd.emoji}'; this.parentElement.style.fontSize='2rem';" />
+            </div>
+            <div style="font-weight:800; font-size:0.95rem;">${gd.name}</div>
+            <div style="opacity:0.75; font-size:0.75rem;">Gadget</div>
+          </div>
+        `;
+      }).join("")}
+    </div>
+    <div style="margin-top:10px; opacity:0.8; font-size:0.85rem;">
+      Selected: <strong>${selectedRequestedAnimalType ? getAnimalData(selectedRequestedAnimalType).displayName : "None"}</strong>
+    </div>
+  `;
+
+  // Bind click handlers to animal cards
+  container.querySelectorAll("[data-animal-id]").forEach(el => {
+    el.addEventListener("click", () => {
+      const id = el.getAttribute("data-animal-id");
+      const found = animals.find(x => x.id === id);
+      if (!found) return;
+      selectedRequestedAnimalId = found.id;
+      selectedRequestedAnimalType = String(found.type).toLowerCase();
+      renderTradeTargetAssets();
+    });
+  });
 }
 
 function populateMyAnimals(state) {
@@ -584,6 +883,35 @@ function sendSwapOffer() {
 
   socket.emit("trade:offer:swap", { toTeamId, offeredAnimalId, requestedAnimalId });
   errEl.textContent = "";
+}
+
+function sendTradeOfferUnified() {
+  const errEl = document.getElementById("trade-unified-error");
+  const cashRadio = document.getElementById("trade-payment-cash");
+  const toTeamId = selectedTradeTargetTeamId;
+
+  if (document.getElementById("tab-trade")?.dataset?.disabledByAuction === "true") {
+    if (errEl) errEl.textContent = "Make Offers is only available between auctions.";
+    return;
+  }
+
+  if (!toTeamId) { if (errEl) errEl.textContent = "Please select a team."; return; }
+  if (!selectedRequestedAnimalId) { if (errEl) errEl.textContent = "Please select an animal from their farm."; return; }
+  if (!cashRadio) { if (errEl) errEl.textContent = "Payment selector missing."; return; }
+
+  if (cashRadio.checked) {
+    const offeredPrice = Number(document.getElementById("trade-cash-amount")?.value);
+    if (!offeredPrice || offeredPrice <= 0) { if (errEl) errEl.textContent = "Please enter a valid cash amount."; return; }
+    socket.emit("trade:offer:money", { toTeamId, requestedAnimalId: selectedRequestedAnimalId, offeredPrice });
+    if (errEl) errEl.textContent = "";
+    const amt = document.getElementById("trade-cash-amount");
+    if (amt) amt.value = "";
+  } else {
+    const offeredAnimalId = document.getElementById("trade-swap-my-animal")?.value;
+    if (!offeredAnimalId) { if (errEl) errEl.textContent = "Please select your animal to switch with."; return; }
+    socket.emit("trade:offer:swap", { toTeamId, offeredAnimalId, requestedAnimalId: selectedRequestedAnimalId });
+    if (errEl) errEl.textContent = "";
+  }
 }
 
 function showTradeModal(offer) {

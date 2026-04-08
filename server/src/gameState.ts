@@ -1,11 +1,15 @@
 import {
   AnimalType,
+  GadgetType,
   ANIMALS,
   ANIMAL_PAIRS,
+  GADGETS,
+  ANIMAL_GADGET_MAP,
   AuctionItem,
   AuctionType,
   Bid,
   FarmAnimal,
+  FarmGadget,
   Player,
   PublicState,
   Team,
@@ -83,6 +87,7 @@ export class FarmAuctionGame {
         balance: STARTING_BALANCE,
         lockedBid: 0,
         farm: [],
+        gadgets: [],
         joinedAt: Date.now(),
       });
     });
@@ -120,13 +125,14 @@ export class FarmAuctionGame {
       username: team.username,
       balance: team.balance,
       lockedBid: team.lockedBid,
-      farmValue: this.calculateFarmValue(team.farm),
+      farmValue: this.calculateFarmValue(team.farm, team.gadgets),
       farm: [...team.farm],
+      gadgets: [...team.gadgets],
       joinedAt: team.joinedAt,
     };
   }
 
-  private calculateFarmValue(farm: FarmAnimal[]): number {
+  private calculateFarmValue(farm: FarmAnimal[], gadgets: FarmGadget[] = []): number {
     const counts = Object.keys(ANIMALS).reduce(
       (acc, key) => ({ ...acc, [key]: 0 }),
       {} as Record<AnimalType, number>
@@ -135,20 +141,37 @@ export class FarmAuctionGame {
       counts[a.type] = (counts[a.type] || 0) + 1;
     });
 
+    // Build a set of boosted animal types from owned gadgets (1 gadget per animal type)
+    const boostedAnimals = new Set<AnimalType>();
+    gadgets.forEach((g) => {
+      boostedAnimals.add(GADGETS[g.type].boostedAnimal);
+    });
+
     let total = 0;
     let bonus = 0;
-    for (const pair of Object.values(ANIMAL_PAIRS)) {
+    for (const [speciesKey, pair] of Object.entries(ANIMAL_PAIRS)) {
       const maleCount = counts[pair.male] || 0;
       const femaleCount = counts[pair.female] || 0;
       const male = ANIMALS[pair.male];
       const female = ANIMALS[pair.female];
-      total += male.baseValue * maleCount + female.baseValue * femaleCount;
+      const maleMult = boostedAnimals.has(pair.male) ? 2 : 1;
+      const femaleMult = boostedAnimals.has(pair.female) ? 2 : 1;
+      total += male.baseValue * maleCount * maleMult + female.baseValue * femaleCount * femaleMult;
       const pairs = Math.min(maleCount, femaleCount);
       if (pairs > 0) {
-        bonus += (male.baseValue + female.baseValue) * pairs;
+        // Pair bonus is based on the boosted values too (so owning animal+its gadget helps like pairs)
+        bonus += (male.baseValue * maleMult + female.baseValue * femaleMult) * pairs;
       }
     }
     return total + bonus;
+  }
+
+  private isAnimalInPendingTrade(animalId: string): boolean {
+    return this.tradeOffers.some(
+      (o) =>
+        o.status === "pending" &&
+        (o.offeredAnimalId === animalId || o.requestedAnimalId === animalId)
+    );
   }
 
   startAuction(
@@ -358,6 +381,9 @@ export class FarmAuctionGame {
 
     const animal = toTeam.farm.find((a) => a.id === requestedAnimalId);
     if (!animal) return { ok: false, message: "That animal doesn't belong to the target team." };
+    if (this.isAnimalInPendingTrade(animal.id)) {
+      return { ok: false, message: "That animal is already involved in another pending trade." };
+    }
 
     const offer: TradeOffer = {
       id: uuid(),
@@ -388,9 +414,15 @@ export class FarmAuctionGame {
 
     const offeredAnimal = fromTeam.farm.find((a) => a.id === offeredAnimalId);
     if (!offeredAnimal) return { ok: false, message: "You don't own the animal you're offering." };
+    if (this.isAnimalInPendingTrade(offeredAnimal.id)) {
+      return { ok: false, message: "Your offered animal is already involved in another pending trade." };
+    }
 
     const requestedAnimal = toTeam.farm.find((a) => a.id === requestedAnimalId);
     if (!requestedAnimal) return { ok: false, message: "That animal doesn't belong to the target team." };
+    if (this.isAnimalInPendingTrade(requestedAnimal.id)) {
+      return { ok: false, message: "That animal is already involved in another pending trade." };
+    }
 
     const offer: TradeOffer = {
       id: uuid(),
@@ -482,6 +514,16 @@ export class FarmAuctionGame {
     return { ok: true };
   }
 
+  cancelTradeOfferAsAdmin(
+    offerId: string
+  ): { ok: true; offer: TradeOffer } | { ok: false; message: string } {
+    const offer = this.tradeOffers.find((o) => o.id === offerId);
+    if (!offer) return { ok: false, message: "Trade offer not found." };
+    if (offer.status !== "pending") return { ok: false, message: "Offer already resolved." };
+    offer.status = "cancelled";
+    return { ok: true, offer };
+  }
+
   getTradeOffersForTeam(teamId: string): { incoming: TradeOffer[]; outgoing: TradeOffer[] } {
     const incoming = this.tradeOffers.filter((o) => o.toTeamId === teamId && o.status === "pending");
     const outgoing = this.tradeOffers.filter((o) => o.fromTeamId === teamId && o.status === "pending");
@@ -513,12 +555,13 @@ export class FarmAuctionGame {
   }
 
   getAdminState(): AdminState {
-    return {
-      ...this.getPublicState(),
-      allTeams: Array.from(this.teams.values()),
-      canStartAuction: !this.auction.isActive,
-    };
-  }
+  return {
+    ...this.getPublicState(),
+    allTeams: Array.from(this.teams.values()),
+    canStartAuction: !this.auction.isActive,
+    allTradeOffers: this.tradeOffers, // ✅ ADD THIS LINE
+  };
+}
 
   getPendingSwitchForTeam(teamId: string): SwitchOffer | null {
     if (this.switchOffer && this.switchOffer.teamId === teamId && this.switchOffer.status === "pending") {

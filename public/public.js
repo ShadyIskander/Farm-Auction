@@ -16,6 +16,32 @@ const animalImages = {
   dog: 'images/dog.jpg'
 };
 
+const gadgetImages = {
+  cow_milker: "/images/gadgets/cow_milker.png",
+  bull_harness: "/images/gadgets/bull_harness.png",
+  goat_bell: "/images/gadgets/goat_bell.png",
+  sheep_shears: "/images/gadgets/sheep_shears.png",
+  chicken_nest: "/images/gadgets/chicken_nest.png",
+  rooster_whistle: "/images/gadgets/rooster_whistle.png",
+  doe_saltlick: "/images/gadgets/doe_saltlick.png",
+  buck_antler_oil: "/images/gadgets/buck_antler_oil.png",
+  cat_yarnball: "/images/gadgets/cat_yarnball.png",
+  dog_treats: "/images/gadgets/dog_treats.png",
+};
+
+const gadgetNames = {
+  cow_milker: "Cow Milker",
+  bull_harness: "Bull Harness",
+  goat_bell: "Goat Bell",
+  sheep_shears: "Sheep Shears",
+  chicken_nest: "Chicken Nest",
+  rooster_whistle: "Rooster Whistle",
+  doe_saltlick: "Doe Salt Lick",
+  buck_antler_oil: "Buck Antler Oil",
+  cat_yarnball: "Silk Yarn Ball",
+  dog_treats: "Dog Treats",
+};
+
 // ANIMAL DISPLAY NAMES
 const animalDisplayNames = {
   cow: "Cow",
@@ -196,6 +222,45 @@ function renderPublicState(state) {
       statusDisplay.style.color = "rgba(255,244,230,.60)";
     }
   }
+
+  renderTopTeams(state);
+}
+
+function renderTopTeams(state) {
+  const container = document.getElementById("public-top-teams");
+  if (!container) return;
+  const teams = (state.teams || []).slice().sort((a, b) => (b.farmValue || 0) - (a.farmValue || 0)).slice(0, 5);
+  if (teams.length === 0) {
+    container.innerHTML = '<div style="opacity:0.75;">No teams yet.</div>';
+    return;
+  }
+
+  container.innerHTML = teams.map((t, idx) => {
+    const counts = {};
+    (t.gadgets || []).forEach(g => { counts[g.type] = (counts[g.type] || 0) + 1; });
+    const thumbs = Object.entries(counts).slice(0, 8).map(([type, count]) => {
+      const img = gadgetImages[type] || "/images/gadgets/placeholder.png";
+      const name = gadgetNames[type] || type;
+      return `
+        <div title="${name} x${count}" style="position:relative;width:26px;height:26px;border-radius:8px;overflow:hidden;border:1px solid rgba(255,255,255,0.14);background:rgba(0,0,0,0.25);">
+          <img src="${img}" alt="${type}" style="width:100%;height:100%;object-fit:cover;" onerror="this.style.display='none'; this.parentElement.textContent='🧩'; this.parentElement.style.display='flex'; this.parentElement.style.alignItems='center'; this.parentElement.style.justifyContent='center'; this.parentElement.style.fontSize='14px';" />
+          ${count > 1 ? `<div style="position:absolute;bottom:-6px;right:-6px;min-width:16px;height:16px;padding:0 4px;border-radius:999px;background:rgba(0,0,0,0.65);border:1px solid rgba(255,255,255,0.18);font-size:10px;display:flex;align-items:center;justify-content:center;">${count}</div>` : ""}
+        </div>
+      `;
+    }).join("");
+
+    return `
+      <div style="display:flex;align-items:center;justify-content:space-between;gap:12px;padding:10px 0;border-bottom:1px solid rgba(255,255,255,0.06);">
+        <div style="display:flex;flex-direction:column;gap:2px;min-width:0;">
+          <div style="font-weight:900; color: ${idx === 0 ? "var(--gold-primary)" : "var(--cream-light)"}; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">${idx + 1}. ${t.username}</div>
+          <div style="opacity:0.8; font-weight:800; font-size:0.9rem;">${t.farmValue || 0} pts</div>
+        </div>
+        <div style="display:flex;flex-wrap:wrap;gap:6px;justify-content:flex-end;max-width:55%;">
+          ${thumbs || '<span style="opacity:0.7;font-size:0.85rem;">—</span>'}
+        </div>
+      </div>
+    `;
+  }).join("");
 }
 
 // Show animal with ACTUAL IMAGE
