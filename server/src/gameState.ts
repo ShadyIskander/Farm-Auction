@@ -14,6 +14,8 @@ import {
   BuybackOffer,
   SwitchOffer,
   BuybackOfferStatus,
+  TradeOffer,
+  TradeOfferType,
 } from "./types";
 import { v4 as uuid } from "uuid";
 
@@ -38,6 +40,7 @@ export class FarmAuctionGame {
   private bidHistory: Bid[] = [];
   private buybacks: BuybackOffer[] = [];
   private switchOffer: SwitchOffer | null = null;
+  private tradeOffers: TradeOffer[] = [];
   private adminPasswordHash: string;
 
   constructor() {
@@ -337,6 +340,154 @@ export class FarmAuctionGame {
     return { ok: true, offer };
   }
 
+  // --- Peer-to-Peer Trade Offers ---
+
+  createMoneyTradeOffer(
+    fromTeamId: string,
+    toTeamId: string,
+    requestedAnimalId: string,
+    offeredPrice: number
+  ): { ok: true; offer: TradeOffer } | { ok: false; message: string } {
+    const fromTeam = this.getTeam(fromTeamId);
+    const toTeam = this.getTeam(toTeamId);
+    if (!fromTeam) return { ok: false, message: "Your team not found." };
+    if (!toTeam) return { ok: false, message: "Target team not found." };
+    if (fromTeamId === toTeamId) return { ok: false, message: "Cannot trade with yourself." };
+    if (offeredPrice <= 0) return { ok: false, message: "Offer price must be positive." };
+    if (offeredPrice > fromTeam.balance) return { ok: false, message: "Insufficient balance for this offer." };
+
+    const animal = toTeam.farm.find((a) => a.id === requestedAnimalId);
+    if (!animal) return { ok: false, message: "That animal doesn't belong to the target team." };
+
+    const offer: TradeOffer = {
+      id: uuid(),
+      type: "money",
+      fromTeamId,
+      toTeamId,
+      offeredPrice,
+      requestedAnimalId: animal.id,
+      requestedAnimalType: animal.type,
+      status: "pending",
+      createdAt: Date.now(),
+    };
+    this.tradeOffers.push(offer);
+    return { ok: true, offer };
+  }
+
+  createSwapTradeOffer(
+    fromTeamId: string,
+    toTeamId: string,
+    offeredAnimalId: string,
+    requestedAnimalId: string
+  ): { ok: true; offer: TradeOffer } | { ok: false; message: string } {
+    const fromTeam = this.getTeam(fromTeamId);
+    const toTeam = this.getTeam(toTeamId);
+    if (!fromTeam) return { ok: false, message: "Your team not found." };
+    if (!toTeam) return { ok: false, message: "Target team not found." };
+    if (fromTeamId === toTeamId) return { ok: false, message: "Cannot trade with yourself." };
+
+    const offeredAnimal = fromTeam.farm.find((a) => a.id === offeredAnimalId);
+    if (!offeredAnimal) return { ok: false, message: "You don't own the animal you're offering." };
+
+    const requestedAnimal = toTeam.farm.find((a) => a.id === requestedAnimalId);
+    if (!requestedAnimal) return { ok: false, message: "That animal doesn't belong to the target team." };
+
+    const offer: TradeOffer = {
+      id: uuid(),
+      type: "swap",
+      fromTeamId,
+      toTeamId,
+      offeredAnimalId: offeredAnimal.id,
+      offeredAnimalType: offeredAnimal.type,
+      requestedAnimalId: requestedAnimal.id,
+      requestedAnimalType: requestedAnimal.type,
+      status: "pending",
+      createdAt: Date.now(),
+    };
+    this.tradeOffers.push(offer);
+    return { ok: true, offer };
+  }
+
+  respondToTradeOffer(
+    teamId: string,
+    offerId: string,
+    accept: boolean
+  ): { ok: true } | { ok: false; message: string } {
+    const offer = this.tradeOffers.find((o) => o.id === offerId);
+    if (!offer) return { ok: false, message: "Trade offer not found." };
+    if (offer.toTeamId !== teamId) return { ok: false, message: "This offer is not for your team." };
+    if (offer.status !== "pending") return { ok: false, message: "Offer already resolved." };
+
+    if (!accept) {
+      offer.status = "rejected";
+      return { ok: true };
+    }
+
+    const fromTeam = this.getTeam(offer.fromTeamId);
+    const toTeam = this.getTeam(offer.toTeamId);
+    if (!fromTeam || !toTeam) { offer.status = "rejected"; return { ok: false, message: "A team no longer exists." }; }
+
+    if (offer.type === "money") {
+      if (!offer.requestedAnimalId || offer.offeredPrice === undefined)
+        return { ok: false, message: "Invalid money offer data." };
+      if ((offer.offeredPrice) > fromTeam.balance)
+        return { ok: false, message: "Offering team no longer has enough balance." };
+      const animalIdx = toTeam.farm.findIndex((a) => a.id === offer.requestedAnimalId);
+      if (animalIdx < 0) return { ok: false, message: "Animal no longer exists in farm." };
+
+      toTeam.farm.splice(animalIdx, 1);
+      toTeam.balance += offer.offeredPrice;
+      fromTeam.farm.push({ id: uuid(), type: offer.requestedAnimalType!, acquiredAt: Date.now() });
+      fromTeam.balance -= offer.offeredPrice;
+
+    } else if (offer.type === "swap") {
+      if (!offer.offeredAnimalId || !offer.requestedAnimalId)
+        return { ok: false, message: "Invalid swap offer data." };
+      const offeredIdx = fromTeam.farm.findIndex((a) => a.id === offer.offeredAnimalId);
+      const requestedIdx = toTeam.farm.findIndex((a) => a.id === offer.requestedAnimalId);
+      if (offeredIdx < 0) return { ok: false, message: "Offered animal no longer exists." };
+      if (requestedIdx < 0) return { ok: false, message: "Requested animal no longer exists." };
+
+      fromTeam.farm.splice(offeredIdx, 1);
+      toTeam.farm.splice(requestedIdx, 1);
+      fromTeam.farm.push({ id: uuid(), type: offer.requestedAnimalType!, acquiredAt: Date.now() });
+      toTeam.farm.push({ id: uuid(), type: offer.offeredAnimalType!, acquiredAt: Date.now() });
+    }
+
+    offer.status = "accepted";
+
+    // Cancel other pending offers involving the same animals (they no longer exist)
+    this.tradeOffers.forEach((o) => {
+      if (o.id !== offerId && o.status === "pending") {
+        const involvedAnimals = [o.offeredAnimalId, o.requestedAnimalId].filter(Boolean);
+        const traded = [offer.offeredAnimalId, offer.requestedAnimalId].filter(Boolean);
+        if (involvedAnimals.some((id) => traded.includes(id))) {
+          o.status = "cancelled";
+        }
+      }
+    });
+
+    return { ok: true };
+  }
+
+  cancelTradeOffer(
+    teamId: string,
+    offerId: string
+  ): { ok: true } | { ok: false; message: string } {
+    const offer = this.tradeOffers.find((o) => o.id === offerId);
+    if (!offer) return { ok: false, message: "Trade offer not found." };
+    if (offer.fromTeamId !== teamId) return { ok: false, message: "You can only cancel your own offers." };
+    if (offer.status !== "pending") return { ok: false, message: "Offer already resolved." };
+    offer.status = "cancelled";
+    return { ok: true };
+  }
+
+  getTradeOffersForTeam(teamId: string): { incoming: TradeOffer[]; outgoing: TradeOffer[] } {
+    const incoming = this.tradeOffers.filter((o) => o.toTeamId === teamId && o.status === "pending");
+    const outgoing = this.tradeOffers.filter((o) => o.fromTeamId === teamId && o.status === "pending");
+    return { incoming, outgoing };
+  }
+
   getPublicState(): PublicState {
     return {
       auction: { ...this.auction },
@@ -352,9 +503,12 @@ export class FarmAuctionGame {
   getUserState(teamId: string): UserState | null {
     const team = this.getTeam(teamId);
     if (!team) return null;
+    const trades = this.getTradeOffersForTeam(teamId);
     return {
       ...this.getPublicState(),
       team: this.teamToPlayer(team),
+      incomingTradeOffers: trades.incoming,
+      outgoingTradeOffers: trades.outgoing,
     };
   }
 

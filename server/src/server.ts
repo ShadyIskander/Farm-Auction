@@ -334,6 +334,68 @@ io.on("connection", (socket: Socket) => {
     }
   });
 
+  // --- Peer-to-Peer Trade Offers ---
+
+  socket.on("trade:offer:money", ({ toTeamId, requestedAnimalId, offeredPrice }: { toTeamId?: string; requestedAnimalId?: string; offeredPrice?: number }) => {
+    const session = sessions.get(socket.id);
+    if (!session?.teamId) { socket.emit("trade:error", { message: "Please login first." }); return; }
+    if (typeof toTeamId !== "string" || typeof requestedAnimalId !== "string" || typeof offeredPrice !== "number") {
+      socket.emit("trade:error", { message: "Invalid trade parameters." }); return;
+    }
+    const result = game.createMoneyTradeOffer(session.teamId, toTeamId, requestedAnimalId, offeredPrice);
+    if (!result.ok) { socket.emit("trade:error", { message: result.message }); return; }
+    // Notify recipient
+    sessions.forEach((sess, sid) => {
+      if (sess.teamId === toTeamId) io.to(sid).emit("trade:incoming", result.offer);
+    });
+    emitUserState(session.teamId);
+    socket.emit("trade:sent", { offer: result.offer });
+  });
+
+  socket.on("trade:offer:swap", ({ toTeamId, offeredAnimalId, requestedAnimalId }: { toTeamId?: string; offeredAnimalId?: string; requestedAnimalId?: string }) => {
+    const session = sessions.get(socket.id);
+    if (!session?.teamId) { socket.emit("trade:error", { message: "Please login first." }); return; }
+    if (typeof toTeamId !== "string" || typeof offeredAnimalId !== "string" || typeof requestedAnimalId !== "string") {
+      socket.emit("trade:error", { message: "Invalid swap parameters." }); return;
+    }
+    const result = game.createSwapTradeOffer(session.teamId, toTeamId, offeredAnimalId, requestedAnimalId);
+    if (!result.ok) { socket.emit("trade:error", { message: result.message }); return; }
+    sessions.forEach((sess, sid) => {
+      if (sess.teamId === toTeamId) io.to(sid).emit("trade:incoming", result.offer);
+    });
+    emitUserState(session.teamId);
+    socket.emit("trade:sent", { offer: result.offer });
+  });
+
+  socket.on("trade:respond", ({ offerId, accept }: { offerId?: string; accept?: boolean }) => {
+    const session = sessions.get(socket.id);
+    if (!session?.teamId) { socket.emit("trade:error", { message: "Please login first." }); return; }
+    if (typeof offerId !== "string" || typeof accept !== "boolean") {
+      socket.emit("trade:error", { message: "Invalid response." }); return;
+    }
+    const result = game.respondToTradeOffer(session.teamId, offerId, accept);
+    if (!result.ok) { socket.emit("trade:error", { message: result.message }); return; }
+    // Refresh both parties
+    const publicState = game.getPublicState();
+    // Find the offer to get fromTeamId
+    sessions.forEach((sess, sid) => {
+      if (sess.teamId) {
+        const userState = game.getUserState(sess.teamId);
+        if (userState) io.to(sid).emit("user:state", userState);
+      }
+    });
+    emitPublicState();
+  });
+
+  socket.on("trade:cancel", ({ offerId }: { offerId?: string }) => {
+    const session = sessions.get(socket.id);
+    if (!session?.teamId) { socket.emit("trade:error", { message: "Please login first." }); return; }
+    if (typeof offerId !== "string") { socket.emit("trade:error", { message: "Invalid offer ID." }); return; }
+    const result = game.cancelTradeOffer(session.teamId, offerId);
+    if (!result.ok) { socket.emit("trade:error", { message: result.message }); return; }
+    emitUserState(session.teamId);
+  });
+
   socket.on("disconnect", () => {
     sessions.delete(socket.id);
   });

@@ -613,6 +613,7 @@
     <div class="tabs">
       <button id="tab-farm" class="tab-button active" onclick="switchTab('farm')">🏡 My Farm</button>
       <button id="tab-bidding" class="tab-button" onclick="switchTab('bidding')">🔨 Auction House</button>
+      <button id="tab-trade" class="tab-button" onclick="switchTab('trade')">🤝 Make Offers</button>
     </div>
 
     <!-- FARM TAB -->
@@ -729,7 +730,80 @@
     </div>
   </div>
 
-  <!-- SWITCH MODAL-->
+    <!-- TRADE TAB -->
+    <div id="tab-content-trade" class="tab-content">
+
+      <!-- Offer Type Selector -->
+      <div class="card" style="margin-bottom: 20px;">
+        <h2 style="margin-bottom: 16px;">Send a Trade Offer</h2>
+        <div style="display:flex; gap:12px; margin-bottom:20px;">
+          <button id="trade-type-money-btn" class="tab-button active" style="flex:1;" onclick="selectTradeType('money')">💰 Money Offer</button>
+          <button id="trade-type-swap-btn" class="tab-button" style="flex:1;" onclick="selectTradeType('swap')">🔄 Animal Swap</button>
+        </div>
+
+        <!-- Money Offer Form -->
+        <div id="trade-form-money">
+          <label>Select Team to Offer To</label>
+          <select id="trade-money-team" onchange="loadTeamAnimals('money')" style="width:100%;padding:10px;margin-bottom:14px;background:rgba(255,255,255,0.08);color:inherit;border:1px solid rgba(255,255,255,0.15);border-radius:8px;">
+            <option value="">-- Choose a team --</option>
+          </select>
+
+          <label>Animal You Want (from their farm)</label>
+          <select id="trade-money-animal" style="width:100%;padding:10px;margin-bottom:14px;background:rgba(255,255,255,0.08);color:inherit;border:1px solid rgba(255,255,255,0.15);border-radius:8px;">
+            <option value="">-- Select a team first --</option>
+          </select>
+
+          <label>Your Offer ($)</label>
+          <input id="trade-money-price" type="number" min="1" step="1" placeholder="Enter amount..." style="width:100%;padding:10px;margin-bottom:14px;background:rgba(255,255,255,0.08);color:inherit;border:1px solid rgba(255,255,255,0.15);border-radius:8px;box-sizing:border-box;" />
+
+          <button onclick="sendMoneyOffer()" style="width:100%;">Send Money Offer</button>
+          <p id="trade-money-error" style="color:#e74c3c;margin-top:8px;font-size:0.9rem;"></p>
+        </div>
+
+        <!-- Swap Offer Form -->
+        <div id="trade-form-swap" style="display:none;">
+          <label>Select Team to Swap With</label>
+          <select id="trade-swap-team" onchange="loadTeamAnimals('swap')" style="width:100%;padding:10px;margin-bottom:14px;background:rgba(255,255,255,0.08);color:inherit;border:1px solid rgba(255,255,255,0.15);border-radius:8px;">
+            <option value="">-- Choose a team --</option>
+          </select>
+
+          <label>Your Animal (what you're giving)</label>
+          <select id="trade-swap-my-animal" style="width:100%;padding:10px;margin-bottom:14px;background:rgba(255,255,255,0.08);color:inherit;border:1px solid rgba(255,255,255,0.15);border-radius:8px;">
+            <option value="">-- You have no animals --</option>
+          </select>
+
+          <label>Their Animal (what you want)</label>
+          <select id="trade-swap-their-animal" style="width:100%;padding:10px;margin-bottom:14px;background:rgba(255,255,255,0.08);color:inherit;border:1px solid rgba(255,255,255,0.15);border-radius:8px;">
+            <option value="">-- Select a team first --</option>
+          </select>
+
+          <button onclick="sendSwapOffer()" style="width:100%;">Send Swap Offer</button>
+          <p id="trade-swap-error" style="color:#e74c3c;margin-top:8px;font-size:0.9rem;"></p>
+        </div>
+      </div>
+
+      <!-- Outgoing Offers -->
+      <div class="card" style="margin-bottom: 20px;">
+        <h2 style="margin-bottom:16px;">📤 Sent Offers</h2>
+        <div id="outgoing-offers-list">
+          <p class="muted">No pending sent offers.</p>
+        </div>
+      </div>
+
+    </div>
+  </div>
+
+  <!-- TRADE INCOMING MODAL -->
+  <div id="trade-modal" class="modal" style="display:none;">
+    <div class="modal-content">
+      <h2 style="color:#fceeb5;font-size:1.8rem;" id="trade-modal-title">🤝 Trade Offer!</h2>
+      <div id="trade-modal-body" style="margin:20px 0;font-size:1rem;line-height:1.6;"></div>
+      <div class="switch-options">
+        <button class="btn-accept" onclick="respondToTrade(true)">Accept</button>
+        <button class="btn-switch" style="background:linear-gradient(135deg,#c0392b,#e74c3c);" onclick="respondToTrade(false)">Decline</button>
+      </div>
+    </div>
+  </div>
   <div id="switch-modal" class="modal" style="display: none;">
     <div class="modal-content">
       <h2 style="color: #fceeb5; font-size: 2rem;">🎉 Auction Won!</h2>

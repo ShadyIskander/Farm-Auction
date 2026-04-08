@@ -5,6 +5,8 @@ let currentTeamId = null;
 let currentState = null;
 let switchChoiceData = null;
 let activeCredentials = null; // Store for silent re-login
+let activeTradeOffer = null;  // incoming trade offer pending response
+let currentTradeType = "money";
 
 // --- CONNECTION STABILITY ---
 
@@ -277,6 +279,18 @@ function renderState(state) {
 
     renderFarm(team.farm);
 
+    // Update trade tab dropdowns and outgoing offers
+    populateTeamDropdowns(state);
+    renderOutgoingOffers(state.outgoingTradeOffers || [], state.teams);
+
+    // Check for incoming trade offers that need a popup (if modal not already open)
+    if (state.incomingTradeOffers && state.incomingTradeOffers.length > 0 && !activeTradeOffer) {
+      const modal = document.getElementById("trade-modal");
+      if (modal && modal.style.display === "none") {
+        showTradeModal(state.incomingTradeOffers[0]);
+      }
+    }
+
     // Auction Section
     const auctionDisplay = document.getElementById("auction-display");
     const iconContainer = document.getElementById("animal-icon");
@@ -447,4 +461,214 @@ function renderDashboard(state) {
     // Logic to show generic auction info could go here
   }
 }
+// --- Trade Offer Socket Events ---
+
+socket.on("trade:incoming", (offer) => {
+  showTradeModal(offer);
+});
+
+socket.on("trade:sent", ({ offer }) => {
+  // Optimistic: state update will follow
+});
+
+socket.on("trade:error", ({ message }) => {
+  // Show in whichever form is active
+  const errEl = document.getElementById(
+    currentTradeType === "money" ? "trade-money-error" : "trade-swap-error"
+  );
+  if (errEl) { errEl.textContent = message; setTimeout(() => errEl.textContent = "", 4000); }
+});
+
+// --- Trade UI Logic ---
+
+function selectTradeType(type) {
+  currentTradeType = type;
+  document.getElementById("trade-form-money").style.display = type === "money" ? "block" : "none";
+  document.getElementById("trade-form-swap").style.display = type === "swap" ? "block" : "none";
+  document.getElementById("trade-type-money-btn").classList.toggle("active", type === "money");
+  document.getElementById("trade-type-swap-btn").classList.toggle("active", type === "swap");
+}
+
+function populateTeamDropdowns(state) {
+  if (!state) return;
+  const myId = state.team.id;
+  const teams = state.teams.filter(t => t.id !== myId);
+
+  ["trade-money-team", "trade-swap-team"].forEach(id => {
+    const sel = document.getElementById(id);
+    if (!sel) return;
+    const prev = sel.value;
+    sel.innerHTML = '<option value="">-- Choose a team --</option>';
+    teams.forEach(t => {
+      const opt = document.createElement("option");
+      opt.value = t.id;
+      opt.textContent = `${t.username} (${t.farm.length} animals)`;
+      sel.appendChild(opt);
+    });
+    if (prev) sel.value = prev;
+  });
+
+  // Populate my animals for swap
+  populateMyAnimals(state);
+}
+
+function populateMyAnimals(state) {
+  const sel = document.getElementById("trade-swap-my-animal");
+  if (!sel || !state) return;
+  sel.innerHTML = state.team.farm.length === 0
+    ? '<option value="">-- You have no animals --</option>'
+    : '';
+  state.team.farm.forEach(a => {
+    const animal = getAnimalData(a.type);
+    const opt = document.createElement("option");
+    opt.value = a.id;
+    opt.textContent = `${animal.displayName} (${animal.baseValue} pts)`;
+    sel.appendChild(opt);
+  });
+}
+
+function loadTeamAnimals(formType) {
+  const teamId = document.getElementById(
+    formType === "money" ? "trade-money-team" : "trade-swap-team"
+  ).value;
+
+  const animalSelId = formType === "money" ? "trade-money-animal" : "trade-swap-their-animal";
+  const animalSel = document.getElementById(animalSelId);
+  if (!animalSel) return;
+
+  if (!teamId || !currentState) {
+    animalSel.innerHTML = '<option value="">-- Select a team first --</option>';
+    return;
+  }
+
+  const team = currentState.teams.find(t => t.id === teamId);
+  if (!team || team.farm.length === 0) {
+    animalSel.innerHTML = '<option value="">-- This team has no animals --</option>';
+    return;
+  }
+
+  animalSel.innerHTML = '';
+  team.farm.forEach(a => {
+    const animal = getAnimalData(a.type);
+    const opt = document.createElement("option");
+    opt.value = a.id;
+    opt.textContent = `${animal.displayName} (${animal.baseValue} pts)`;
+    animalSel.appendChild(opt);
+  });
+}
+
+function sendMoneyOffer() {
+  const toTeamId = document.getElementById("trade-money-team").value;
+  const requestedAnimalId = document.getElementById("trade-money-animal").value;
+  const offeredPrice = Number(document.getElementById("trade-money-price").value);
+  const errEl = document.getElementById("trade-money-error");
+
+  if (!toTeamId) { errEl.textContent = "Please select a team."; return; }
+  if (!requestedAnimalId) { errEl.textContent = "Please select an animal."; return; }
+  if (!offeredPrice || offeredPrice <= 0) { errEl.textContent = "Please enter a valid offer price."; return; }
+
+  socket.emit("trade:offer:money", { toTeamId, requestedAnimalId, offeredPrice });
+  errEl.textContent = "";
+  document.getElementById("trade-money-price").value = "";
+}
+
+function sendSwapOffer() {
+  const toTeamId = document.getElementById("trade-swap-team").value;
+  const offeredAnimalId = document.getElementById("trade-swap-my-animal").value;
+  const requestedAnimalId = document.getElementById("trade-swap-their-animal").value;
+  const errEl = document.getElementById("trade-swap-error");
+
+  if (!toTeamId) { errEl.textContent = "Please select a team."; return; }
+  if (!offeredAnimalId) { errEl.textContent = "Please select an animal to offer."; return; }
+  if (!requestedAnimalId) { errEl.textContent = "Please select an animal to request."; return; }
+
+  socket.emit("trade:offer:swap", { toTeamId, offeredAnimalId, requestedAnimalId });
+  errEl.textContent = "";
+}
+
+function showTradeModal(offer) {
+  activeTradeOffer = offer;
+  const modal = document.getElementById("trade-modal");
+  const body = document.getElementById("trade-modal-body");
+  const title = document.getElementById("trade-modal-title");
+
+  const fromTeam = currentState ? currentState.teams.find(t => t.id === offer.fromTeamId) : null;
+  const fromName = fromTeam ? fromTeam.username : "Another Team";
+
+  if (offer.type === "money") {
+    const animal = getAnimalData(offer.requestedAnimalType);
+    title.textContent = "💰 Money Offer!";
+    body.innerHTML = `
+      <p><strong style="color:var(--gold-primary);">${fromName}</strong> wants to buy your:</p>
+      <p style="font-size:1.3rem;margin:10px 0;"><strong>${animal.displayName}</strong></p>
+      <p>Their offer: <strong style="color:var(--money-color);font-size:1.4rem;">$${offer.offeredPrice}</strong></p>
+    `;
+  } else {
+    const theirAnimal = getAnimalData(offer.offeredAnimalType);
+    const yourAnimal = getAnimalData(offer.requestedAnimalType);
+    title.textContent = "🔄 Swap Offer!";
+    body.innerHTML = `
+      <p><strong style="color:var(--gold-primary);">${fromName}</strong> wants to swap:</p>
+      <div style="display:flex;align-items:center;justify-content:center;gap:16px;margin:14px 0;">
+        <div style="text-align:center;">
+          <div style="font-size:1.1rem;font-weight:700;">${theirAnimal.displayName}</div>
+          <div style="font-size:0.85rem;opacity:0.7;">They give you</div>
+        </div>
+        <div style="font-size:1.5rem;">⇄</div>
+        <div style="text-align:center;">
+          <div style="font-size:1.1rem;font-weight:700;">${yourAnimal.displayName}</div>
+          <div style="font-size:0.85rem;opacity:0.7;">You give them</div>
+        </div>
+      </div>
+    `;
+  }
+
+  modal.style.display = "flex";
+}
+
+function respondToTrade(accept) {
+  if (!activeTradeOffer) return;
+  socket.emit("trade:respond", { offerId: activeTradeOffer.id, accept });
+  document.getElementById("trade-modal").style.display = "none";
+  activeTradeOffer = null;
+}
+
+function renderOutgoingOffers(offers, allTeams) {
+  const container = document.getElementById("outgoing-offers-list");
+  if (!container) return;
+
+  if (!offers || offers.length === 0) {
+    container.innerHTML = '<p class="muted">No pending sent offers.</p>';
+    return;
+  }
+
+  container.innerHTML = "";
+  offers.forEach(offer => {
+    const toTeam = allTeams ? allTeams.find(t => t.id === offer.toTeamId) : null;
+    const toName = toTeam ? toTeam.username : "Unknown Team";
+
+    let detail = "";
+    if (offer.type === "money") {
+      const animal = getAnimalData(offer.requestedAnimalType);
+      detail = `Buy <strong>${animal.displayName}</strong> from ${toName} for <strong style="color:var(--money-color);">$${offer.offeredPrice}</strong>`;
+    } else {
+      const mine = getAnimalData(offer.offeredAnimalType);
+      const theirs = getAnimalData(offer.requestedAnimalType);
+      detail = `Swap your <strong>${mine.displayName}</strong> for ${toName}'s <strong>${theirs.displayName}</strong>`;
+    }
+
+    const div = document.createElement("div");
+    div.style.cssText = "display:flex;justify-content:space-between;align-items:center;padding:12px;margin-bottom:8px;background:rgba(255,255,255,0.05);border-radius:8px;gap:10px;";
+    div.innerHTML = `
+      <span style="flex:1;font-size:0.9rem;">${detail}</span>
+      <button onclick="cancelTradeOffer('${offer.id}')" style="padding:6px 12px;font-size:0.8rem;background:rgba(231,76,60,0.3);border:1px solid rgba(231,76,60,0.5);color:#e74c3c;border-radius:6px;cursor:pointer;white-space:nowrap;">Cancel</button>
+    `;
+    container.appendChild(div);
+  });
+}
+
+function cancelTradeOffer(offerId) {
+  socket.emit("trade:cancel", { offerId });
+}
+
 function showError(id, msg) { const el = document.getElementById(id); el.textContent = msg; el.style.color = "red"; }

@@ -109,6 +109,26 @@ export interface SwitchOffer {
   status: SwitchStatus;
 }
 
+// Peer-to-Peer Trade Types
+export type TradeOfferStatus = "pending" | "accepted" | "rejected" | "cancelled";
+export type TradeOfferType = "money" | "swap";
+
+export interface TradeOffer {
+  id: string;
+  type: TradeOfferType;
+  fromTeamId: string;
+  toTeamId: string;
+  // Money offer: fromTeam pays price to get toTeam's animal
+  offeredPrice?: number;       // cash offered by fromTeam
+  requestedAnimalId?: string;  // animal fromTeam wants from toTeam
+  requestedAnimalType?: AnimalType;
+  // Swap offer: fromTeam's animal <-> toTeam's animal
+  offeredAnimalId?: string;    // animal fromTeam is offering
+  offeredAnimalType?: AnimalType;
+  status: TradeOfferStatus;
+  createdAt: number;
+}
+
 // Public State (sent to all clients)
 export interface PublicState {
   auction: AuctionItem;
@@ -123,6 +143,8 @@ export interface PublicState {
 // User-specific state (sent to logged-in teams)
 export interface UserState extends PublicState {
   team: Player;
+  incomingTradeOffers: TradeOffer[];
+  outgoingTradeOffers: TradeOffer[];
 }
 
 // Admin state (sent to admin interface)
@@ -130,4 +152,3 @@ export interface AdminState extends PublicState {
   allTeams: Team[];
   canStartAuction: boolean;
 }
-
