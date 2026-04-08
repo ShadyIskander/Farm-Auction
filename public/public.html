@@ -778,6 +778,22 @@
             const emoji = getAnimalEmoji(animalType);
             hugeAnimalIcon.innerHTML = `<div style="font-size: 200px; color: var(--gold-primary); display: flex; align-items: center; justify-content: center; height: 100%;">${emoji}</div>`;
           }
+        } else if (window.currentState?.auction?.itemCategory === 'gadget' && window.currentState?.auction?.gadgetType) {
+          // Gadget auction fallback
+          const gadgetType = window.currentState.auction.gadgetType;
+          const gadgetImages = window.gadgetImages || {};
+          const gadgetNames = window.gadgetNames || {};
+          const imgSrc = gadgetImages[gadgetType];
+          const name = gadgetNames[gadgetType] || gadgetType;
+          const emojiMap = { cow_milker:'🪣', bull_harness:'🧰', goat_bell:'🔔', sheep_shears:'✂️',
+            chicken_nest:'🪺', rooster_whistle:'📯', doe_saltlick:'🧂', buck_antler_oil:'🧴',
+            cat_yarnball:'🧶', dog_treats:'🦴' };
+          const emoji = emojiMap[gadgetType] || '🧩';
+          if (imgSrc) {
+            hugeAnimalIcon.innerHTML = `<img src="${imgSrc}" alt="${name}" style="width:100%;height:100%;object-fit:cover;border-radius:50px;" onerror="this.parentElement.innerHTML='<div style=\"font-size:200px;display:flex;align-items:center;justify-content:center;height:100%;\">${emoji}</div>'">`;
+          } else {
+            hugeAnimalIcon.innerHTML = `<div style="font-size: 200px; color: var(--gold-primary); display: flex; align-items: center; justify-content: center; height: 100%;">${emoji}</div>`;
+          }
         } else {
           // Fallback to question mark
           hugeAnimalIcon.innerHTML = `<div style="font-size: 200px; color: var(--gold-primary); display: flex; align-items: center; justify-content: center; height: 100%;">❓</div>`;
@@ -882,9 +898,12 @@
       syncImageToHugeDisplay();
       
       // Check auction type and reveal status
+      // Check if this is a gadget auction first
+      const isGadgetAuction = window.currentState?.auction?.itemCategory === 'gadget';
+
       if (auctionTypeText) {
         const auctionType = auctionTypeText.textContent.toLowerCase();
-        const isBlind = auctionType.includes('blind');
+        const isBlind = auctionType.includes('blind') && !isGadgetAuction;
         
         // Check if animal is already revealed
         const animalName = originalAnimalName ? originalAnimalName.textContent : '';

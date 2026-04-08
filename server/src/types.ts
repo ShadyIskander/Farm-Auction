@@ -52,7 +52,7 @@ export const GADGETS: Record<GadgetType, Gadget> = {
   },
   goat_bell: {
     type: "goat_bell",
-    displayName: "Goat Bell",
+    displayName: "Sheep Bell",
     description: "Doubles score for all Goats you own.",
     basePrice: 10,
     boostedAnimal: "goat",
@@ -61,7 +61,7 @@ export const GADGETS: Record<GadgetType, Gadget> = {
   },
   sheep_shears: {
     type: "sheep_shears",
-    displayName: "Sheep Shears",
+    displayName: "Ram Shears",
     description: "Doubles score for all Sheep you own.",
     basePrice: 12,
     boostedAnimal: "sheep",
@@ -106,7 +106,7 @@ export const GADGETS: Record<GadgetType, Gadget> = {
   },
   cat_yarnball: {
     type: "cat_yarnball",
-    displayName: "Silk Yarn Ball",
+    displayName: "Cat Silk Yarn Ball",
     description: "Doubles score for all Cats you own.",
     basePrice: 9,
     boostedAnimal: "cat",
@@ -172,6 +172,9 @@ export const ANIMAL_PAIRS: Record<string, { male: AnimalType; female: AnimalType
 
 export type AuctionType = "normal" | "blind" | "switch";
 
+// Whether the auction item is an animal or a gadget
+export type AuctionItemCategory = "animal" | "gadget";
+
 export type BuybackOfferStatus = "pending" | "accepted" | "rejected" | "cancelled";
 export type SwitchStatus = "pending" | "accepted" | "switched" | "expired";
 
@@ -213,7 +216,10 @@ export interface Player {
 // Auction Types
 export interface AuctionItem {
   id: string;
-  animalType: AnimalType | null; // null for blind auctions until reveal
+  // "animal" = standard auction, "gadget" = auctioning a gadget
+  itemCategory: AuctionItemCategory;
+  animalType: AnimalType | null; // null for blind auctions until reveal, or for gadget auctions
+  gadgetType: GadgetType | null; // set when itemCategory === "gadget"
   switchTarget: AnimalType | null; // used for switch auctions (admin-chosen)
   startingPrice: number;
   currentPrice: number;

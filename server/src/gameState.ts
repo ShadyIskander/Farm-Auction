@@ -1,6 +1,7 @@
 import {
   AnimalType,
   GadgetType,
+  AuctionItemCategory,
   ANIMALS,
   ANIMAL_PAIRS,
   GADGETS,
@@ -51,7 +52,9 @@ export class FarmAuctionGame {
     this.adminPasswordHash = hashPassword(DEFAULT_ADMIN_PASSWORD);
     this.auction = {
       id: uuid(),
+      itemCategory: "animal",
       animalType: null,
+      gadgetType: null,
       switchTarget: null,
       startingPrice: 0,
       currentPrice: 0,
@@ -174,32 +177,62 @@ export class FarmAuctionGame {
     );
   }
 
+  // Start an auction for either an animal OR a gadget.
+  // Pass itemCategory="gadget" and gadgetType to auction a gadget.
   startAuction(
     animalType: AnimalType,
     startingPrice: number,
     auctionType: AuctionType,
-    switchTarget?: AnimalType | null
+    switchTarget?: AnimalType | null,
+    itemCategory?: AuctionItemCategory,
+    gadgetType?: GadgetType | null
   ): { ok: true } | { ok: false; message: string } {
     if (this.auction.isActive) return { ok: false, message: "An auction is already active." };
     if (startingPrice < 1) return { ok: false, message: "Starting price must be at least 1." };
-    if (!ANIMALS[animalType]) return { ok: false, message: "Invalid animal type." };
-    if (auctionType === "switch" && !switchTarget) return { ok: false, message: "Switch target required." };
 
-    this.hiddenAnimal = auctionType === "blind" ? animalType : null;
-    this.switchOffer = null;
+    const category: AuctionItemCategory = itemCategory === "gadget" ? "gadget" : "animal";
 
-    this.auction = {
-      id: uuid(),
-      animalType: auctionType === "blind" ? null : animalType,
-      switchTarget: switchTarget || null,
-      startingPrice,
-      currentPrice: startingPrice,
-      highestBidderId: null,
-      auctionType,
-      isActive: true,
-      startedAt: Date.now(),
-      endedAt: null,
-    };
+    if (category === "gadget") {
+      if (!gadgetType || !GADGETS[gadgetType]) return { ok: false, message: "Invalid gadget type." };
+      // Gadget auctions are always "normal" type (no blind/switch for gadgets)
+      this.hiddenAnimal = null;
+      this.switchOffer = null;
+      this.auction = {
+        id: uuid(),
+        itemCategory: "gadget",
+        animalType: null,
+        gadgetType,
+        switchTarget: null,
+        startingPrice,
+        currentPrice: startingPrice,
+        highestBidderId: null,
+        auctionType: "normal",
+        isActive: true,
+        startedAt: Date.now(),
+        endedAt: null,
+      };
+    } else {
+      if (!ANIMALS[animalType]) return { ok: false, message: "Invalid animal type." };
+      if (auctionType === "switch" && !switchTarget) return { ok: false, message: "Switch target required." };
+
+      this.hiddenAnimal = auctionType === "blind" ? animalType : null;
+      this.switchOffer = null;
+
+      this.auction = {
+        id: uuid(),
+        itemCategory: "animal",
+        animalType: auctionType === "blind" ? null : animalType,
+        gadgetType: null,
+        switchTarget: switchTarget || null,
+        startingPrice,
+        currentPrice: startingPrice,
+        highestBidderId: null,
+        auctionType,
+        isActive: true,
+        startedAt: Date.now(),
+        endedAt: null,
+      };
+    }
 
     this.highestBid = null;
     this.bidHistory = [];
@@ -221,35 +254,43 @@ export class FarmAuctionGame {
     return { ok: true, animalType: this.hiddenAnimal };
   }
 
-  stopAuction(): { ok: true; winnerId: string | null; animalType: AnimalType | null } | { ok: false; message: string } {
+  stopAuction(): { ok: true; winnerId: string | null; animalType: AnimalType | null; gadgetType: GadgetType | null; itemCategory: AuctionItemCategory } | { ok: false; message: string } {
     if (!this.auction.isActive) return { ok: false, message: "No active auction." };
 
     const winnerId = this.auction.highestBidderId;
+    const category = this.auction.itemCategory;
     let awardAnimal: AnimalType | null = this.auction.animalType;
-    if (this.auction.auctionType === "blind" && this.hiddenAnimal) {
+    const awardGadget: GadgetType | null = this.auction.gadgetType;
+
+    if (category === "animal" && this.auction.auctionType === "blind" && this.hiddenAnimal) {
       awardAnimal = this.hiddenAnimal;
       this.auction.animalType = this.hiddenAnimal; // reveal
     }
 
-    if (winnerId && awardAnimal) {
+    if (winnerId) {
       const winner = this.getTeam(winnerId);
       if (winner) {
         const winningBidAmount = this.highestBid?.amount ?? this.auction.currentPrice;
         winner.balance -= winningBidAmount;
         winner.lockedBid = 0;
 
-        if (this.auction.auctionType === "switch" && this.auction.switchTarget) {
-          // hold for choice
-          this.switchOffer = {
-            auctionId: this.auction.id!,
-            teamId: winnerId,
-            originalAnimal: awardAnimal,
-            switchTarget: this.auction.switchTarget,
-            status: "pending",
-          };
-        } else {
-          // award immediately
-          winner.farm.push({ id: uuid(), type: awardAnimal, acquiredAt: Date.now() });
+        if (category === "gadget" && awardGadget) {
+          // Award gadget to winner
+          winner.gadgets.push({ id: uuid(), type: awardGadget, acquiredAt: Date.now() });
+        } else if (category === "animal" && awardAnimal) {
+          if (this.auction.auctionType === "switch" && this.auction.switchTarget) {
+            // hold for choice
+            this.switchOffer = {
+              auctionId: this.auction.id!,
+              teamId: winnerId,
+              originalAnimal: awardAnimal,
+              switchTarget: this.auction.switchTarget,
+              status: "pending",
+            };
+          } else {
+            // award immediately
+            winner.farm.push({ id: uuid(), type: awardAnimal, acquiredAt: Date.now() });
+          }
         }
       }
     }
@@ -257,7 +298,7 @@ export class FarmAuctionGame {
     this.auction.isActive = false;
     this.auction.endedAt = Date.now();
 
-    return { ok: true, winnerId, animalType: awardAnimal };
+    return { ok: true, winnerId, animalType: awardAnimal, gadgetType: awardGadget, itemCategory: category };
   }
 
   cancelAuction(): { ok: true } | { ok: false; message: string } {
@@ -555,13 +596,13 @@ export class FarmAuctionGame {
   }
 
   getAdminState(): AdminState {
-  return {
-    ...this.getPublicState(),
-    allTeams: Array.from(this.teams.values()),
-    canStartAuction: !this.auction.isActive,
-    allTradeOffers: this.tradeOffers, // ✅ ADD THIS LINE
-  };
-}
+    return {
+      ...this.getPublicState(),
+      allTeams: Array.from(this.teams.values()),
+      canStartAuction: !this.auction.isActive,
+      allTradeOffers: this.tradeOffers,
+    };
+  }
 
   getPendingSwitchForTeam(teamId: string): SwitchOffer | null {
     if (this.switchOffer && this.switchOffer.teamId === teamId && this.switchOffer.status === "pending") {

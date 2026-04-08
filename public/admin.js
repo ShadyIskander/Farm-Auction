@@ -5,58 +5,73 @@ window.addEventListener("load", () => {
   const savedU = sessionStorage.getItem("fa_u");
   const savedP = sessionStorage.getItem("fa_p");
 
-  // Check if we're already logged in as admin
   if (savedU === "admin" && savedP) {
-    // Optimistically hide login screen, show dashboard immediately
     const adminLogin = document.getElementById("admin-login");
     const adminDashboard = document.getElementById("admin-dashboard");
     if (adminLogin) adminLogin.style.display = "none";
     if (adminDashboard) adminDashboard.style.display = "block";
-
-    // Auto-login as admin
     socket.emit("admin:login", { password: savedP });
   }
 
-  // Request initial state
   socket.emit("state:request");
 });
 
 let adminState = null;
 let selectedAnimal = null;
+let selectedGadget = null;
+// "animal" or "gadget" — tracks which tab the admin is on
+let currentItemCategory = "animal";
+
+// ─── Gadget data helpers ───────────────────────────────────────────────────
 
 function getGadgetImage(type) {
   const images = {
-    cow_milker: "/images/gadgets/cow_milker.png",
-    bull_harness: "/images/gadgets/bull_harness.png",
-    goat_bell: "/images/gadgets/goat_bell.png",
-    sheep_shears: "/images/gadgets/sheep_shears.png",
-    chicken_nest: "/images/gadgets/chicken_nest.png",
+    cow_milker:      "/images/gadgets/cow_milker.png",
+    bull_harness:    "/images/gadgets/bull_harness.png",
+    goat_bell:       "/images/gadgets/goat_bell.png",
+    sheep_shears:    "/images/gadgets/sheep_shears.png",
+    chicken_nest:    "/images/gadgets/chicken_nest.png",
     rooster_whistle: "/images/gadgets/rooster_whistle.png",
-    doe_saltlick: "/images/gadgets/doe_saltlick.png",
+    doe_saltlick:    "/images/gadgets/doe_saltlick.png",
     buck_antler_oil: "/images/gadgets/buck_antler_oil.png",
-    cat_yarnball: "/images/gadgets/cat_yarnball.png",
-    dog_treats: "/images/gadgets/dog_treats.png",
+    cat_yarnball:    "/images/gadgets/cat_yarnball.png",
+    dog_treats:      "/images/gadgets/dog_treats.png",
   };
   return images[type] || "/images/gadgets/placeholder.png";
 }
 
 function getGadgetData(type) {
   const map = {
-    cow_milker: { name: "Cow Milker", emoji: "🪣" },
-    bull_harness: { name: "Bull Harness", emoji: "🧰" },
-    goat_bell: { name: "Goat Bell", emoji: "🔔" },
-    sheep_shears: { name: "Sheep Shears", emoji: "✂️" },
-    chicken_nest: { name: "Chicken Nest", emoji: "🪺" },
-    rooster_whistle: { name: "Rooster Whistle", emoji: "📯" },
-    doe_saltlick: { name: "Doe Salt Lick", emoji: "🧂" },
-    buck_antler_oil: { name: "Buck Antler Oil", emoji: "🧴" },
-    cat_yarnball: { name: "Silk Yarn Ball", emoji: "🧶" },
-    dog_treats: { name: "Dog Treats", emoji: "🦴" },
+    cow_milker:      { name: "Cow Milker",      emoji: "🪣", boosts: "Cow",     basePrice: 14 },
+    bull_harness:    { name: "Bull Harness",    emoji: "🧰", boosts: "Bull",    basePrice: 16 },
+    goat_bell:       { name: "Sheep Bell",       emoji: "🔔", boosts: "Goat",    basePrice: 10 },
+    sheep_shears:    { name: "Ram Shears",    emoji: "✂️", boosts: "Sheep",   basePrice: 12 },
+    chicken_nest:    { name: "Chicken Nest",    emoji: "🪺", boosts: "Chicken", basePrice: 8  },
+    rooster_whistle: { name: "Rooster Whistle", emoji: "📯", boosts: "Rooster", basePrice: 9  },
+    doe_saltlick:    { name: "Doe Salt Lick",   emoji: "🧂", boosts: "Doe",     basePrice: 11 },
+    buck_antler_oil: { name: "Buck Antler Oil", emoji: "🧴", boosts: "Buck",    basePrice: 13 },
+    cat_yarnball:    { name: "Cat Silk Yarn Ball",  emoji: "🧶", boosts: "Cat",     basePrice: 9  },
+    dog_treats:      { name: "Dog Treats",      emoji: "🦴", boosts: "Dog",     basePrice: 9  },
   };
-  return map[type] || { name: String(type), emoji: "🧩" };
+  return map[type] || { name: String(type), emoji: "🧩", boosts: "?", basePrice: 0 };
 }
 
-// Admin Login (if login form exists)
+// Full gadgets list for card grid
+const gadgets = [
+  { value: "cow_milker",      name: "Cow Milker",      boosts: "Cow",     basePrice: 14, image: "/images/gadgets/cow_milker.png",      emoji: "🪣" },
+  { value: "bull_harness",    name: "Bull Harness",    boosts: "Bull",    basePrice: 16, image: "/images/gadgets/bull_harness.png",    emoji: "🧰" },
+  { value: "goat_bell",       name: "Sheep Bell",       boosts: "Goat",    basePrice: 10, image: "/images/gadgets/goat_bell.png",       emoji: "🔔" },
+  { value: "sheep_shears",    name: "Ram Shears",    boosts: "Sheep",   basePrice: 12, image: "/images/gadgets/sheep_shears.png",    emoji: "✂️" },
+  { value: "chicken_nest",    name: "Chicken Nest",    boosts: "Chicken", basePrice: 8,  image: "/images/gadgets/chicken_nest.png",    emoji: "🪺" },
+  { value: "rooster_whistle", name: "Rooster Whistle", boosts: "Rooster", basePrice: 9,  image: "/images/gadgets/rooster_whistle.png", emoji: "📯" },
+  { value: "doe_saltlick",    name: "Doe Salt Lick",   boosts: "Doe",     basePrice: 11, image: "/images/gadgets/doe_saltlick.png",    emoji: "🧂" },
+  { value: "buck_antler_oil", name: "Buck Antler Oil", boosts: "Buck",    basePrice: 13, image: "/images/gadgets/buck_antler_oil.png", emoji: "🧴" },
+  { value: "cat_yarnball",    name: "Cat Silk Yarn Ball",  boosts: "Cat",     basePrice: 9,  image: "/images/gadgets/cat_yarnball.png",    emoji: "🧶" },
+  { value: "dog_treats",      name: "Dog Treats",      boosts: "Dog",     basePrice: 9,  image: "/images/gadgets/dog_treats.png",      emoji: "🦴" },
+];
+
+// ─── Login ─────────────────────────────────────────────────────────────────
+
 const adminLoginForm = document.getElementById("admin-login-form");
 if (adminLoginForm) {
   adminLoginForm.addEventListener("submit", (e) => {
@@ -66,7 +81,8 @@ if (adminLoginForm) {
   });
 }
 
-// Socket Events
+// ─── Socket Events ─────────────────────────────────────────────────────────
+
 socket.on("admin:login:success", ({ adminState: state }) => {
   adminState = state;
   const adminLogin = document.getElementById("admin-login");
@@ -98,69 +114,110 @@ socket.on("admin:error", ({ message }) => {
 });
 
 socket.on("auction:started", () => {
-  console.log("Auction started on server");
   socket.emit("state:request");
 });
 
 socket.on("auction:ended", () => {
-  console.log("Auction ended on server");
   socket.emit("state:request");
 });
 
 socket.on("auction:cancelled", () => {
-  console.log("Auction cancelled on server");
   socket.emit("state:request");
 });
 
-// Start Auction - MODIFIED FOR YOUR IMAGE-BASED SELECTION
+// ─── Item category tab switcher ────────────────────────────────────────────
+
+function switchItemTab(category) {
+  currentItemCategory = category;
+  selectedAnimal = null;
+  selectedGadget = null;
+
+  const animalTab = document.getElementById("item-tab-animal");
+  const gadgetTab = document.getElementById("item-tab-gadget");
+  const animalsSection = document.getElementById("animals-section");
+  const gadgetsSection = document.getElementById("gadgets-section");
+  const auctionTypeRow = document.getElementById("auction-type-row");
+  const switchWrapper = document.getElementById("switch-target-wrapper");
+
+  if (animalTab) animalTab.classList.toggle("active", category === "animal");
+  if (gadgetTab) gadgetTab.classList.toggle("active", category === "gadget");
+  if (animalsSection) animalsSection.style.display = category === "animal" ? "block" : "none";
+  if (gadgetsSection) gadgetsSection.style.display = category === "gadget" ? "block" : "none";
+
+  // Gadget auctions are always "normal" — hide type selector
+  if (auctionTypeRow) auctionTypeRow.style.display = category === "gadget" ? "none" : "flex";
+  if (switchWrapper) switchWrapper.style.display = "none";
+
+  // Deselect all cards
+  document.querySelectorAll(".animal-card, .gadget-card").forEach(c => c.classList.remove("selected"));
+
+  // Reset hidden selects
+  const animalSelect = document.getElementById("animal-select");
+  const gadgetSelect = document.getElementById("gadget-select");
+  if (animalSelect) animalSelect.value = "";
+  if (gadgetSelect) gadgetSelect.value = "";
+}
+
+// ─── Auction Start Form ────────────────────────────────────────────────────
+
 const auctionStartForm = document.getElementById("auction-start-form");
 if (auctionStartForm) {
   auctionStartForm.addEventListener("submit", (e) => {
     e.preventDefault();
 
-    // Get selected animal from hidden select OR from selectedAnimal variable
-    const animalSelect = document.getElementById("animal-select");
-    const animalType = animalSelect ? animalSelect.value : selectedAnimal;
-
     const startingPrice = Number(document.getElementById("starting-price").value);
-    const auctionType = document.getElementById("auction-type").value;
-    const switchTarget = document.getElementById("switch-target").value;
-
-    if (!animalType || !startingPrice || !auctionType) {
-      const errorEl = document.getElementById("auction-start-error");
-      if (errorEl) {
-        errorEl.textContent = "Please select an animal and fill all fields.";
-        errorEl.style.display = "block";
-      }
-      return;
-    }
-
-    if (auctionType === "switch" && !switchTarget) {
-      const errorEl = document.getElementById("auction-start-error");
-      if (errorEl) {
-        errorEl.textContent = "Pick a switch target animal.";
-        errorEl.style.display = "block";
-      }
-      return;
-    }
-
-    // Send to server
-    socket.emit("admin:auction:start", {
-      animalType,
-      startingPrice,
-      auctionType,
-      switchTarget: auctionType === "switch" ? switchTarget : null
-    });
-
-    // Clear error
     const errorEl = document.getElementById("auction-start-error");
-    if (errorEl) {
-      errorEl.textContent = "";
-      errorEl.style.display = "none";
-    }
 
-    // Update UI immediately
-    updateCurrentAuctionDisplay(animalType, startingPrice, auctionType);
+    if (currentItemCategory === "gadget") {
+      const gadgetSelect = document.getElementById("gadget-select");
+      const gadgetType = gadgetSelect ? gadgetSelect.value : selectedGadget;
+
+      if (!gadgetType || !startingPrice) {
+        if (errorEl) { errorEl.textContent = "Please select a gadget and set a price."; errorEl.style.display = "block"; }
+        return;
+      }
+
+      socket.emit("admin:auction:start", {
+        itemCategory: "gadget",
+        gadgetType,
+        startingPrice,
+        auctionType: "normal",
+        animalType: null,
+        switchTarget: null,
+      });
+
+      if (errorEl) { errorEl.textContent = ""; errorEl.style.display = "none"; }
+      const gd = getGadgetData(gadgetType);
+      updateCurrentAuctionDisplay(gadgetType, startingPrice, "normal", null, "gadget");
+
+    } else {
+      const animalSelect = document.getElementById("animal-select");
+      const animalType = animalSelect ? animalSelect.value : selectedAnimal;
+      const auctionType = document.getElementById("auction-type").value;
+      const switchTarget = document.getElementById("switch-target").value;
+
+      if (!animalType || !startingPrice || !auctionType) {
+        if (errorEl) { errorEl.textContent = "Please select an animal and fill all fields."; errorEl.style.display = "block"; }
+        return;
+      }
+
+      if (auctionType === "switch" && !switchTarget) {
+        if (errorEl) { errorEl.textContent = "Pick a switch target animal."; errorEl.style.display = "block"; }
+        return;
+      }
+
+      socket.emit("admin:auction:start", {
+        itemCategory: "animal",
+        animalType,
+        startingPrice,
+        auctionType,
+        switchTarget: auctionType === "switch" ? switchTarget : null,
+        gadgetType: null,
+      });
+
+      if (errorEl) { errorEl.textContent = ""; errorEl.style.display = "none"; }
+      updateCurrentAuctionDisplay(animalType, startingPrice, auctionType, null, "animal");
+    }
   });
 }
 
@@ -173,27 +230,26 @@ if (auctionTypeSelect && switchTargetWrapper) {
   });
 }
 
-// Stop Auction
+// ─── Stop / Cancel / Reveal ────────────────────────────────────────────────
+
 const stopAuctionBtn = document.getElementById("stop-auction-btn");
 if (stopAuctionBtn) {
   stopAuctionBtn.addEventListener("click", () => {
-    if (confirm("Stop the current auction and award the animal to the highest bidder?")) {
+    if (confirm("Stop the current auction and award the item to the highest bidder?")) {
       socket.emit("admin:auction:stop");
     }
   });
 }
 
-// Cancel Auction
 const cancelAuctionBtn = document.getElementById("cancel-auction-btn");
 if (cancelAuctionBtn) {
   cancelAuctionBtn.addEventListener("click", () => {
-    if (confirm("Cancel the current auction? No one will receive the animal and bids will be returned.")) {
+    if (confirm("Cancel the current auction? No one will receive the item and bids will be returned.")) {
       socket.emit("admin:auction:cancel");
     }
   });
 }
 
-// Reveal Animal Button (for blind auctions)
 const revealAnimalBtn = document.getElementById("reveal-animal-btn");
 if (revealAnimalBtn) {
   revealAnimalBtn.addEventListener("click", () => {
@@ -203,10 +259,7 @@ if (revealAnimalBtn) {
   });
 }
 
-// Listen for reveal success
 socket.on("admin:success", ({ message }) => {
-  console.log("Admin success:", message);
-  // Update button state after reveal
   if (message.includes("revealed")) {
     const revealBtn = document.getElementById("reveal-animal-btn");
     if (revealBtn) {
@@ -217,7 +270,8 @@ socket.on("admin:success", ({ message }) => {
   }
 });
 
-// Buyback form
+// ─── Buyback Form ──────────────────────────────────────────────────────────
+
 const buybackForm = document.getElementById("buyback-form");
 if (buybackForm) {
   buybackForm.addEventListener("submit", (e) => {
@@ -228,43 +282,39 @@ if (buybackForm) {
 
     if (!teamId || !animalId || !price) {
       const errorEl = document.getElementById("buyback-error");
-      if (errorEl) {
-        errorEl.textContent = "Fill all buyback fields.";
-        errorEl.style.display = "block";
-      }
+      if (errorEl) { errorEl.textContent = "Fill all buyback fields."; errorEl.style.display = "block"; }
       return;
     }
 
     socket.emit("admin:buyback:offer", { teamId, animalId, price });
 
     const errorEl = document.getElementById("buyback-error");
-    if (errorEl) {
-      errorEl.textContent = "";
-      errorEl.style.display = "none";
-    }
+    if (errorEl) { errorEl.textContent = ""; errorEl.style.display = "none"; }
   });
 }
 
-// Render Admin State - UPDATED FOR YOUR DESIGN
+// ─── Render Admin State ────────────────────────────────────────────────────
+
 function renderAdminState(state) {
   if (!state) return;
 
   const auction = state.auction;
 
-  // Current Auction
   if (auction && auction.isActive) {
-    // Update current auction display
+    const isGadget = auction.itemCategory === "gadget";
+
     updateCurrentAuctionDisplay(
-      auction.animalType,
+      isGadget ? auction.gadgetType : auction.animalType,
       auction.currentPrice,
       auction.auctionType,
-      state.teams?.find(t => t.id === auction.highestBidderId)
+      state.teams?.find(t => t.id === auction.highestBidderId),
+      auction.itemCategory || "animal"
     );
 
-    // Show/hide reveal button for blind auctions
+    // Reveal button — only for blind animal auctions
     const revealBtn = document.getElementById("reveal-animal-btn");
     if (revealBtn) {
-      if (auction.auctionType === "blind") {
+      if (!isGadget && auction.auctionType === "blind") {
         revealBtn.style.display = "inline-block";
         revealBtn.disabled = false;
         revealBtn.textContent = "Reveal Animal to All";
@@ -274,22 +324,18 @@ function renderAdminState(state) {
       }
     }
 
-    // Disable start auction button
     const startAuctionBtn = document.getElementById("start-auction-btn");
     if (startAuctionBtn) startAuctionBtn.disabled = true;
 
-    // Update stats
     const statAuction = document.getElementById("stat-auction");
     if (statAuction) statAuction.textContent = "Active";
 
-    const auctionCardValue = document.querySelector('.auction-card .stat-card-value');
+    const auctionCardValue = document.querySelector(".auction-card .stat-card-value");
     if (auctionCardValue) auctionCardValue.textContent = "Active";
+
   } else {
-    // No active auction
     const currentAuctionInfo = document.getElementById("current-auction-info");
-    if (currentAuctionInfo) {
-      currentAuctionInfo.innerHTML = '<p class="muted">No active auction</p>';
-    }
+    if (currentAuctionInfo) currentAuctionInfo.innerHTML = '<p class="muted">No active auction</p>';
 
     const auctionControls = document.getElementById("auction-controls");
     if (auctionControls) auctionControls.style.display = "none";
@@ -297,31 +343,20 @@ function renderAdminState(state) {
     const startAuctionBtn = document.getElementById("start-auction-btn");
     if (startAuctionBtn) startAuctionBtn.disabled = false;
 
-    // Update stats
     const statAuction = document.getElementById("stat-auction");
     if (statAuction) statAuction.textContent = "Idle";
 
-    const auctionCardValue = document.querySelector('.auction-card .stat-card-value');
+    const auctionCardValue = document.querySelector(".auction-card .stat-card-value");
     if (auctionCardValue) auctionCardValue.textContent = "Idle";
   }
 
-  // Teams List - USING YOUR HARDCODED TEAMS FOR NOW
-  // (We'll update this if server sends real team data)
-  if (state.teams && state.teams.length > 0) {
-    renderTeams(state.teams);
-  }
-
-  // Trade offers (admin can view + cancel)
+  if (state.teams && state.teams.length > 0) renderTeams(state.teams);
   renderTradeOffers(state.allTradeOffers || [], state.teams || []);
 
-  // Statistics
   const statTeams = document.getElementById("stat-teams");
-  if (statTeams) {
-    statTeams.textContent = state.teams ? state.teams.length : 4; // Fallback to 4
-  }
+  if (statTeams) statTeams.textContent = state.teams ? state.teams.length : 0;
 
-  const totalAnimals = state.teams ?
-    state.teams.reduce((sum, team) => sum + (team.farm?.length || 0), 0) : 32; // Fallback to 32
+  const totalAnimals = state.teams ? state.teams.reduce((sum, t) => sum + (t.farm?.length || 0), 0) : 0;
   const statAnimals = document.getElementById("stat-animals");
   if (statAnimals) statAnimals.textContent = totalAnimals;
 }
@@ -357,7 +392,6 @@ function renderTradeOffers(offers, teams) {
     const div = document.createElement("div");
     div.style.cssText = "display:flex;justify-content:space-between;align-items:center;padding:12px;margin-bottom:8px;background:rgba(255,255,255,0.05);border-radius:8px;gap:10px;";
     const status = String(o.status || "").toUpperCase();
-
     const canCancel = o.status === "pending";
     div.innerHTML = `
       <span style="flex:1;font-size:0.9rem;">
@@ -369,36 +403,38 @@ function renderTradeOffers(offers, teams) {
     if (canCancel) {
       const btn = div.querySelector("button");
       btn.addEventListener("click", () => {
-        if (confirm("Cancel this trade offer?")) {
-          socket.emit("admin:trade:cancel", { offerId: o.id });
-        }
+        if (confirm("Cancel this trade offer?")) socket.emit("admin:trade:cancel", { offerId: o.id });
       });
     }
     container.appendChild(div);
   });
 }
 
-function updateCurrentAuctionDisplay(animalType, price, auctionType, highestBidder = null) {
+function updateCurrentAuctionDisplay(itemType, price, auctionType, highestBidder = null, itemCategory = "animal") {
   const auctionControls = document.getElementById("auction-controls");
   if (auctionControls) auctionControls.style.display = "block";
 
   const currentAuctionInfo = document.getElementById("current-auction-info");
-  if (currentAuctionInfo) currentAuctionInfo.innerHTML = '';
-
-  // Get animal name from your animals array or use utility function
-  const animalData = getAnimalDataFromType(animalType);
+  if (currentAuctionInfo) currentAuctionInfo.innerHTML = "";
 
   const currentAnimal = document.getElementById("current-animal");
   if (currentAnimal) {
-    currentAnimal.textContent = animalData ?
-      `${animalData.name} (${animalData.gender})` :
-      animalType ? `${animalType.charAt(0).toUpperCase() + animalType.slice(1)}` : "Mystery Animal";
+    if (itemCategory === "gadget") {
+      const gd = getGadgetData(itemType);
+      currentAnimal.textContent = `${gd.emoji} ${gd.name} (Gadget — boosts ${gd.boosts})`;
+    } else {
+      const animalData = getAnimalDataFromType(itemType);
+      currentAnimal.textContent = animalData
+        ? `${animalData.name} (${animalData.gender})`
+        : itemType ? `${itemType.charAt(0).toUpperCase() + itemType.slice(1)}` : "Mystery Animal";
+    }
   }
 
   const currentAuctionType = document.getElementById("current-auction-type");
   if (currentAuctionType) {
-    currentAuctionType.textContent = auctionType ?
-      auctionType.charAt(0).toUpperCase() + auctionType.slice(1) : "Normal";
+    currentAuctionType.textContent = itemCategory === "gadget"
+      ? "Gadget Auction"
+      : (auctionType ? auctionType.charAt(0).toUpperCase() + auctionType.slice(1) : "Normal");
   }
 
   const currentAuctionPrice = document.getElementById("current-auction-price");
@@ -406,8 +442,7 @@ function updateCurrentAuctionDisplay(animalType, price, auctionType, highestBidd
 
   const currentHighestBidder = document.getElementById("current-highest-bidder");
   if (currentHighestBidder) {
-    currentHighestBidder.textContent = highestBidder ?
-      highestBidder.username : "Waiting for bids...";
+    currentHighestBidder.textContent = highestBidder ? highestBidder.username : "Waiting for bids...";
   }
 }
 
@@ -417,28 +452,24 @@ function renderTeams(teams) {
 
   if (!teamsList || !buybackTeam) return;
 
-  // Clear existing
   teamsList.innerHTML = "";
   buybackTeam.innerHTML = '<option value="">Choose a team...</option>';
 
   teams.forEach((team, index) => {
     const gadgets = team.gadgets || [];
     const gadgetCounts = {};
-    gadgets.forEach((g) => {
-      gadgetCounts[g.type] = (gadgetCounts[g.type] || 0) + 1;
-    });
+    gadgets.forEach((g) => { gadgetCounts[g.type] = (gadgetCounts[g.type] || 0) + 1; });
     const gadgetThumbs = Object.entries(gadgetCounts).map(([type, count]) => {
       const gd = getGadgetData(type);
       const img = getGadgetImage(type);
       return `
         <div title="${gd.name} x${count}" style="position:relative;width:28px;height:28px;border-radius:8px;overflow:hidden;border:1px solid rgba(255,255,255,0.14);background:rgba(0,0,0,0.25);">
-          <img src="${img}" alt="${type}" style="width:100%;height:100%;object-fit:cover;" onerror="this.style.display='none'; this.parentElement.innerHTML='${gd.emoji}'; this.parentElement.style.display='flex'; this.parentElement.style.alignItems='center'; this.parentElement.style.justifyContent='center'; this.parentElement.style.fontSize='16px';" />
+          <img src="${img}" alt="${type}" style="width:100%;height:100%;object-fit:cover;" onerror="this.style.display='none'; this.parentElement.textContent='${gd.emoji}'; this.parentElement.style.display='flex'; this.parentElement.style.alignItems='center'; this.parentElement.style.justifyContent='center'; this.parentElement.style.fontSize='16px';" />
           ${count > 1 ? `<div style="position:absolute;bottom:-6px;right:-6px;min-width:16px;height:16px;padding:0 4px;border-radius:999px;background:rgba(0,0,0,0.65);border:1px solid rgba(255,255,255,0.18);font-size:10px;display:flex;align-items:center;justify-content:center;">${count}</div>` : ""}
         </div>
       `;
     }).join("");
 
-    // Add to teams list display
     const teamItem = document.createElement("div");
     teamItem.className = "team-item";
     teamItem.innerHTML = `
@@ -457,22 +488,17 @@ function renderTeams(teams) {
     `;
     teamsList.appendChild(teamItem);
 
-    // Add to buyback dropdown
     const option = document.createElement("option");
     option.value = team.id;
     option.textContent = `${team.username} ($${team.balance || 0})`;
     buybackTeam.appendChild(option);
   });
 
-  // Also populate buyback-animal dropdown for first team
   populateBuybackAnimals(teams[0]);
 
-  // Update buyback-animal when team selection changes
   buybackTeam.addEventListener("change", () => {
     const selectedTeam = teams.find(t => t.id === buybackTeam.value);
-    if (selectedTeam) {
-      populateBuybackAnimals(selectedTeam);
-    }
+    if (selectedTeam) populateBuybackAnimals(selectedTeam);
   });
 }
 
@@ -491,32 +517,29 @@ function populateBuybackAnimals(team) {
     const option = document.createElement("option");
     option.value = animal.id || `animal-${index}`;
     const animalData = getAnimalDataFromType(animal.type);
-    option.textContent = animalData ?
-      `${animalData.name} (${animalData.gender})` :
-      `${animal.type.charAt(0).toUpperCase() + animal.type.slice(1)}`;
+    option.textContent = animalData ? `${animalData.name} (${animalData.gender})` : `${animal.type}`;
     buybackAnimal.appendChild(option);
   });
 }
 
-// Helper function to get animal data from type
+// ─── Helpers ───────────────────────────────────────────────────────────────
+
 function getAnimalDataFromType(type) {
   const animalsMap = {
-    cow: { name: "Cow", gender: "Female", points: 85 },
-    bull: { name: "Bull", gender: "Male", points: 65 },
-    goat: { name: "Sheep", gender: "Female", points: 45 },
-    sheep: { name: "Ram", gender: "Male", points: 55 },
-    chicken: { name: "Chicken", gender: "Female", points: 12 },
-    rooster: { name: "Rooster", gender: "Male", points: 8 },
-    doe: { name: "Doe", gender: "Female", points: 60 },
-    buck: { name: "Buck", gender: "Male", points: 40 },
-    cat: { name: "Cat", gender: "Female", points: 15 },
-    dog: { name: "Dog", gender: "Male", points: 25 }
+    cow:     { name: "Cow",     gender: "Female" },
+    bull:    { name: "Bull",    gender: "Male"   },
+    goat:    { name: "Sheep",   gender: "Female" },
+    sheep:   { name: "Ram",     gender: "Male"   },
+    chicken: { name: "Chicken", gender: "Female" },
+    rooster: { name: "Rooster", gender: "Male"   },
+    doe:     { name: "Doe",     gender: "Female" },
+    buck:    { name: "Buck",    gender: "Male"   },
+    cat:     { name: "Cat",     gender: "Female" },
+    dog:     { name: "Dog",     gender: "Male"   },
   };
-
   return animalsMap[type] || null;
 }
 
-// Keep these utility functions for compatibility
 function getAnimalData(type) {
   return getAnimalDataFromType(type) || { displayName: "Unknown", baseValue: 0 };
 }
@@ -530,20 +553,120 @@ function getAnimalEmoji(type) {
   return emojis[type] || "❓";
 }
 
-// Initialize animal card selection
-document.addEventListener("DOMContentLoaded", function () {
-  // Set up animal card click handlers if they exist
-  const animalCards = document.querySelectorAll('.animal-card');
-  animalCards.forEach(card => {
-    card.addEventListener('click', function () {
-      // Update selected animal
-      selectedAnimal = this.dataset.value;
+// ─── DOM Init — Animal + Gadget card grids ─────────────────────────────────
 
-      // Update hidden select
-      const animalSelect = document.getElementById('animal-select');
-      if (animalSelect) {
-        animalSelect.value = selectedAnimal;
+document.addEventListener("DOMContentLoaded", function () {
+  // ── Animal cards ──
+  const animalsGrid = document.getElementById("animals-grid");
+  const animalSelect = document.getElementById("animal-select");
+  const switchTarget = document.getElementById("switch-target");
+
+  if (animalsGrid) {
+    animalsGrid.innerHTML = "";
+
+    const animalsData = [
+      { value: "cow",     name: "Cow",     gender: "Female", price: 10, description: "Premium dairy breed for milk production",  image: "images/cow.jpg"     },
+      { value: "bull",    name: "Bull",    gender: "Male",   price: 15, description: "Prime beef cattle for breeding",           image: "images/bull.webp"   },
+      { value: "goat",    name: "Sheep",   gender: "Female", price: 5,  description: "Reliable milk and cheese producer",       image: "images/sheep.jpeg"  },
+      { value: "sheep",   name: "Ram",     gender: "Male",   price: 10, description: "Wool production and meat source",         image: "images/Ram.webp"    },
+      { value: "chicken", name: "Chicken", gender: "Female", price: 3,  description: "Excellent egg layer daily",               image: "images/chicken.jpg" },
+      { value: "rooster", name: "Rooster", gender: "Male",   price: 5,  description: "Flock protection and breeding",           image: "images/rooster.jpg" },
+      { value: "doe",     name: "Doe",     gender: "Female", price: 8,  description: "Graceful, produces offspring yearly",     image: "images/doe.jpg"     },
+      { value: "buck",    name: "Buck",    gender: "Male",   price: 12, description: "Majestic, valuable for breeding",         image: "images/Buck.jpg"    },
+      { value: "cat",     name: "Cat",     gender: "Female", price: 4,  description: "Pest control expert for barns",           image: "images/cat.jpg"     },
+      { value: "dog",     name: "Dog",     gender: "Male",   price: 6,  description: "Herding and farm protection",             image: "images/dog.jpg"     },
+    ];
+
+    animalsData.forEach(animal => {
+      const card = document.createElement("div");
+      card.className = "animal-card";
+      card.dataset.value = animal.value;
+      card.innerHTML = `
+        <div class="animal-icon">
+          <img src="${animal.image}" alt="${animal.name}"
+               onerror="this.onerror=null; this.src='https://via.placeholder.com/300x200/4a3118/f8f4e8?text=${animal.name}';">
+        </div>
+        <div class="animal-name">${animal.name}</div>
+        <div class="animal-description">${animal.description}</div>
+        <div class="animal-price">${animal.price}</div>
+      `;
+
+      card.addEventListener("click", function () {
+        document.querySelectorAll(".animal-card").forEach(c => c.classList.remove("selected"));
+        card.classList.add("selected");
+        selectedAnimal = animal.value;
+        if (animalSelect) {
+          animalSelect.value = animal.value;
+          animalSelect.dispatchEvent(new Event("change", { bubbles: true }));
+        }
+      });
+
+      animalsGrid.appendChild(card);
+
+      if (switchTarget) {
+        const opt = document.createElement("option");
+        opt.value = animal.value;
+        opt.textContent = `${animal.name} (${animal.gender}) - ${animal.price} pts`;
+        switchTarget.appendChild(opt);
       }
     });
-  });
+  }
+
+  // ── Gadget cards ──
+  const gadgetsGrid = document.getElementById("gadgets-grid");
+  const gadgetSelect = document.getElementById("gadget-select");
+
+  if (gadgetsGrid) {
+    gadgetsGrid.innerHTML = "";
+
+    gadgets.forEach(gadget => {
+      const card = document.createElement("div");
+      // Reuse animal-card styles
+      card.className = "animal-card gadget-card";
+      card.dataset.value = gadget.value;
+      card.innerHTML = `
+        <div class="animal-icon">
+          <img src="${gadget.image}" alt="${gadget.name}"
+               onerror="this.onerror=null; this.parentElement.innerHTML='<div style=\\'font-size:2.5rem;display:flex;align-items:center;justify-content:center;height:100%;\\' >${gadget.emoji}</div>';">
+        </div>
+        <div class="animal-name">${gadget.name}</div>
+        <div class="animal-description">Doubles ${gadget.boosts} points</div>
+        <div class="animal-price">${gadget.basePrice}</div>
+      `;
+
+      card.addEventListener("click", function () {
+        document.querySelectorAll(".gadget-card").forEach(c => c.classList.remove("selected"));
+        card.classList.add("selected");
+        selectedGadget = gadget.value;
+        if (gadgetSelect) {
+          gadgetSelect.value = gadget.value;
+          gadgetSelect.dispatchEvent(new Event("change", { bubbles: true }));
+        }
+      });
+
+      gadgetsGrid.appendChild(card);
+    });
+  }
+
+  // ── Auction type show/hide switch wrapper ──
+  const auctionType = document.getElementById("auction-type");
+  const switchWrapper = document.getElementById("switch-target-wrapper");
+  if (auctionType && switchWrapper) {
+    auctionType.addEventListener("change", function () {
+      if (currentItemCategory !== "gadget") {
+        switchWrapper.style.display = this.value === "switch" ? "block" : "none";
+      }
+    });
+  }
+
+  // ── Buyback form buttons ──
+  const stopBtn = document.getElementById("stop-auction-btn");
+  const cancelBtn = document.getElementById("cancel-auction-btn");
+  if (stopBtn) {
+    stopBtn.classList.add("btn");
+    if (cancelBtn) cancelBtn.classList.add("btn", "btn-danger");
+  }
+
+  // ── Initialize tab state ──
+  switchItemTab("animal");
 });

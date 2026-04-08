@@ -145,14 +145,19 @@ function renderPublicState(state) {
     console.log("Public: Auction is active, animal type:", auction.animalType);
 
     // Show podium content
-    if (auction.auctionType === "blind" && !auction.animalType) {
+    if (auction.itemCategory === "gadget" && auction.gadgetType) {
+      // Gadget auction - show gadget image
+      document.getElementById("animal-display").style.display = "flex";
+      document.getElementById("mystery-box").style.display = "none";
+      showGadgetImage(auction.gadgetType);
+    } else if (auction.auctionType === "blind" && !auction.animalType) {
       // Blind auction - show mystery box
       console.log("Public: Showing mystery box (blind auction)");
       document.getElementById("animal-display").style.display = "none";
       document.getElementById("mystery-box").style.display = "block";
       document.getElementById("animal-name-large").textContent = "Mystery Animal";
     } else {
-      // Normal auction - show animal with IMAGE
+      // Normal animal auction - show animal with IMAGE
       console.log("Public: Showing animal display");
       document.getElementById("animal-display").style.display = "flex";
       document.getElementById("mystery-box").style.display = "none";
@@ -160,7 +165,6 @@ function renderPublicState(state) {
       if (auction.animalType) {
         showAnimalImage(auction.animalType);
       } else {
-        // No animal type (shouldn't happen)
         document.getElementById("animal-name-large").textContent = "Unknown Animal";
         document.getElementById("animal-icon-large").innerHTML = "❓";
       }
@@ -264,6 +268,28 @@ function renderTopTeams(state) {
 }
 
 // Show animal with ACTUAL IMAGE
+
+// Show gadget with image on the public podium
+function showGadgetImage(gadgetType) {
+  const animalIcon = document.getElementById("animal-icon-large");
+  const animalName = document.getElementById("animal-name-large");
+  if (!animalIcon || !animalName) return;
+
+  const imgSrc = gadgetImages[gadgetType];
+  const name = gadgetNames[gadgetType] || gadgetType;
+  const emoji = { cow_milker:"🪣", bull_harness:"🧰", goat_bell:"🔔", sheep_shears:"✂️",
+    chicken_nest:"🪺", rooster_whistle:"📯", doe_saltlick:"🧂", buck_antler_oil:"🧴",
+    cat_yarnball:"🧶", dog_treats:"🦴" }[gadgetType] || "🧩";
+
+  animalIcon.innerHTML = '';
+  const img = document.createElement('img');
+  img.src = imgSrc;
+  img.alt = name;
+  img.onerror = function() { animalIcon.innerHTML = emoji; };
+  animalIcon.appendChild(img);
+  animalName.textContent = name;
+}
+
 function showAnimalImage(animalType) {
   const animalIcon = document.getElementById("animal-icon-large");
   const animalName = document.getElementById("animal-name-large");

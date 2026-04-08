@@ -117,13 +117,13 @@ function getGadgetData(type) {
   const map = {
     cow_milker: { name: "Cow Milker", emoji: "🪣" },
     bull_harness: { name: "Bull Harness", emoji: "🧰" },
-    goat_bell: { name: "Goat Bell", emoji: "🔔" },
-    sheep_shears: { name: "Sheep Shears", emoji: "✂️" },
+    goat_bell: { name: "Sheep Bell", emoji: "🔔" },
+    sheep_shears: { name: "Ram Shears", emoji: "✂️" },
     chicken_nest: { name: "Chicken Nest", emoji: "🪺" },
     rooster_whistle: { name: "Rooster Whistle", emoji: "📯" },
     doe_saltlick: { name: "Doe Salt Lick", emoji: "🧂" },
     buck_antler_oil: { name: "Buck Antler Oil", emoji: "🧴" },
-    cat_yarnball: { name: "Silk Yarn Ball", emoji: "🧶" },
+    cat_yarnball: { name: "Cat Silk Yarn Ball", emoji: "🧶" },
     dog_treats: { name: "Dog Treats", emoji: "🦴" },
   };
   return map[type] || { name: String(type), emoji: "🧩" };
@@ -344,18 +344,33 @@ function renderState(state) {
       const statusEl = document.getElementById("auction-status");
       if (statusEl) statusEl.innerHTML = '<p class="success">Auction Active</p>';
 
-      if (auction.animalType) {
-        // Force lowercase to ensure matching
+      if (auction.itemCategory === "gadget" && auction.gadgetType) {
+        // Gadget auction — show gadget image and info
+        const gd = getGadgetData(auction.gadgetType);
+        const img = getGadgetImage(auction.gadgetType);
+        if (iconContainer) {
+          iconContainer.innerHTML = '';
+          const gadgetImg = document.createElement('img');
+          gadgetImg.src = img;
+          gadgetImg.style = 'width:100%; height:100%; object-fit:cover; border-radius:12px;';
+          gadgetImg.onerror = function() {
+            iconContainer.innerHTML = '<div style="font-size:3rem;display:flex;align-items:center;justify-content:center;height:100%;">' + gd.emoji + '</div>';
+          };
+          iconContainer.appendChild(gadgetImg);
+        }
+        setText("animal-name", gd.emoji + " " + gd.name);
+        setText("animal-value", "Gadget — doubles " + gd.boosts + " score");
+      } else if (auction.animalType) {
+        // Normal animal auction — show animal image
         const type = String(auction.animalType).toLowerCase();
         const animal = getAnimalData(type);
         const img = getAnimalImage(type);
-
-        if (iconContainer) iconContainer.innerHTML = `<img src="${img}" style="width:100%; height:100%; object-fit:cover; border-radius:12px;">`;
-
+        if (iconContainer) iconContainer.innerHTML = '<img src="' + img + '" style="width:100%; height:100%; object-fit:cover; border-radius:12px;">';
         setText("animal-name", animal.displayName);
-        setText("animal-value", `Base Value: ${animal.baseValue} Points`);
+        setText("animal-value", "Base Value: " + animal.baseValue + " Points");
       } else {
-        if (iconContainer) iconContainer.innerHTML = `<div style="font-size: 3rem; display: flex; align-items: center; justify-content: center; height:100%;">🎁</div>`;
+        // Blind animal auction — mystery box
+        if (iconContainer) iconContainer.innerHTML = '<div style="font-size: 3rem; display: flex; align-items: center; justify-content: center; height:100%;">🎁</div>';
         setText("animal-name", "Mystery Animal");
         setText("animal-value", "Hidden until reveal");
       }

@@ -642,17 +642,52 @@
           <div class="card admin-section">
             <h2>Start New Auction</h2>
             <p style="margin-bottom: 25px; opacity: 0.85; line-height: 1.6;">
-              Select an animal, set starting price, and choose auction type.
+              Select an animal or gadget, set starting price, and choose auction type.
             </p>
 
+            <!-- Item Type Tab Switcher -->
+            <div style="display:flex; gap:12px; margin-bottom:28px;">
+              <button type="button" id="item-tab-animal" onclick="switchItemTab('animal')"
+                style="flex:1; padding:12px 20px; border-radius:10px; border:1px solid rgba(184,148,84,0.4); background:linear-gradient(135deg,rgba(184,148,84,0.2),rgba(74,49,24,0.4)); color:var(--cream-light); font-weight:700; font-size:1rem; cursor:pointer; transition:all 0.2s; letter-spacing:0.5px;">
+                🐄 Animals
+              </button>
+              <button type="button" id="item-tab-gadget" onclick="switchItemTab('gadget')"
+                style="flex:1; padding:12px 20px; border-radius:10px; border:1px solid rgba(184,148,84,0.15); background:rgba(26,18,8,0.4); color:var(--cream); font-weight:700; font-size:1rem; cursor:pointer; transition:all 0.2s; letter-spacing:0.5px;">
+                🧰 Gadgets
+              </button>
+            </div>
+
             <!-- Animal Image Grid -->
-            <div class="animals-grid" id="animals-grid">
-              <!-- Animal cards will be populated by JavaScript -->
+            <div id="animals-section">
+              <div class="animals-grid" id="animals-grid">
+                <!-- Animal cards will be populated by JavaScript -->
+              </div>
+            </div>
+
+            <!-- Gadget Image Grid -->
+            <div id="gadgets-section" style="display:none;">
+              <div class="animals-grid" id="gadgets-grid">
+                <!-- Gadget cards will be populated by JavaScript -->
+              </div>
+              <!-- Hidden select for gadget -->
+              <select id="gadget-select" style="display:none;">
+                <option value="">Choose a gadget...</option>
+                <option value="cow_milker">🪣 Cow Milker</option>
+                <option value="bull_harness">🧰 Bull Harness</option>
+                <option value="goat_bell">🔔 Sheet Bell</option>
+                <option value="sheep_shears">✂️ Ram Shears</option>
+                <option value="chicken_nest">🪺 Chicken Nest</option>
+                <option value="rooster_whistle">📯 Rooster Whistle</option>
+                <option value="doe_saltlick">🧂 Doe Salt Lick</option>
+                <option value="buck_antler_oil">🧴 Buck Antler Oil</option>
+                <option value="cat_yarnball">🧶 Cat Silk Yarn Ball</option>
+                <option value="dog_treats">🦴 Dog Treats</option>
+              </select>
             </div>
 
             <form id="auction-start-form">
               <!-- Hidden select for original functionality -->
-              <select id="animal-select" style="display: none;" required>
+              <select id="animal-select" style="display: none;">
                 <option value="">Choose an animal...</option>
                 <option value="cow">🐄 Cow (Female) - 10 points</option>
                 <option value="bull">🐂 Bull (Male) - 15 points</option>
@@ -801,213 +836,6 @@
 
   <script src="/socket.io/socket.io.js"></script>
   <script src="/admin.js"></script>
-  <script>
-    // Animal data with descriptions and your image paths
-    const animals = [
-      {
-        value: 'cow',
-        name: 'Cow',
-        gender: 'Female',
-        price: 10,
-        description: 'Premium dairy breed for milk production',
-        image: 'images/cow.jpg'
-      },
-      {
-        value: 'bull',
-        name: 'Bull',
-        gender: 'Male',
-        price: 15,
-        description: 'Prime beef cattle for breeding',
-        image: 'images/bull.webp'
-      },
-      {
-        value: 'goat',
-        name: 'Sheep',
-        gender: 'Female',
-        price: 5,
-        description: 'Reliable milk and cheese producer',
-        image: 'images/sheep.jpeg'
-      },
-      {
-        value: 'sheep',
-        name: 'Ram',
-        gender: 'Male',
-        price: 10,
-        description: 'Wool production and meat source',
-        image: 'images/Ram.webp'
-      },
-      {
-        value: 'chicken',
-        name: 'Chicken',
-        gender: 'Female',
-        price: 3,
-        description: 'Excellent egg layer daily',
-        image: 'images/chicken.jpg'
-      },
-      {
-        value: 'rooster',
-        name: 'Rooster',
-        gender: 'Male',
-        price: 5,
-        description: 'Flock protection and breeding',
-        image: 'images/rooster.jpg'
-      },
-      {
-        value: 'doe',
-        name: 'Doe',
-        gender: 'Female',
-        price: 8,
-        description: 'Graceful, produces offspring yearly',
-        image: 'images/doe.jpg'
-      },
-      {
-        value: 'buck',
-        name: 'Buck',
-        gender: 'Male',
-        price: 12,
-        description: 'Majestic, valuable for breeding',
-        image: 'images/Buck.jpg'
-      },
-      {
-        value: 'cat',
-        name: 'Cat',
-        gender: 'Female',
-        price: 4,
-        description: 'Pest control expert for barns',
-        image: 'images/cat.jpg'
-      },
-      {
-        value: 'dog',
-        name: 'Dog',
-        gender: 'Male',
-        price: 6,
-        description: 'Herding and farm protection',
-        image: 'images/dog.jpg'
-      }
-    ];
-
-    // Initialize animal cards
-    document.addEventListener('DOMContentLoaded', function () {
-      const animalsGrid = document.getElementById('animals-grid');
-      const animalSelect = document.getElementById('animal-select');
-      const switchTarget = document.getElementById('switch-target');
-      const buybackAnimal = document.getElementById('buyback-animal');
-
-      if (animalsGrid) {
-        animalsGrid.innerHTML = '';
-
-        animals.forEach(animal => {
-          // Create animal card
-          const card = document.createElement('div');
-          card.className = 'animal-card';
-          card.dataset.value = animal.value;
-
-          card.innerHTML = `
-            <div class="animal-icon">
-              <img src="${animal.image}" alt="${animal.name}" 
-                   onerror="this.onerror=null; this.src='https://via.placeholder.com/300x200/4a3118/f8f4e8?text=${animal.name}';">
-            </div>
-            <div class="animal-name">${animal.name}</div>
-            <div class="animal-description">${animal.description}</div>
-            <div class="animal-price">${animal.price}</div>
-          `;
-
-          // Add click handler
-          card.addEventListener('click', function () {
-            // Deselect previous
-            document.querySelectorAll('.animal-card').forEach(c => {
-              c.classList.remove('selected');
-            });
-
-            // Select this card
-            card.classList.add('selected');
-
-            // Update the hidden select for original functionality
-            if (animalSelect) {
-              animalSelect.value = animal.value;
-
-              // Trigger change event for any listeners
-              const event = new Event('change', { bubbles: true });
-              animalSelect.dispatchEvent(event);
-            }
-
-            console.log(`Selected animal: ${animal.name} (${animal.value})`);
-          });
-
-          animalsGrid.appendChild(card);
-
-          // Add to switch target dropdown
-          if (switchTarget) {
-            const option = document.createElement('option');
-            option.value = animal.value;
-            // Added "points" to the text
-            option.textContent = `${animal.name} (${animal.gender}) - ${animal.price} points`;
-            switchTarget.appendChild(option);
-          }
-
-          // Add to buyback animal dropdown
-          if (buybackAnimal) {
-            const option = document.createElement('option');
-            option.value = animal.value;
-            option.textContent = `${animal.name} (${animal.gender})`;
-            buybackAnimal.appendChild(option.cloneNode(true));
-          }
-        });
-
-        console.log('Animal cards populated with images and descriptions');
-      }
-
-      // Show/hide switch target wrapper
-      const auctionType = document.getElementById('auction-type');
-      const switchWrapper = document.getElementById('switch-target-wrapper');
-
-      if (auctionType && switchWrapper) {
-        auctionType.addEventListener('change', function () {
-          if (this.value === 'switch') {
-            switchWrapper.style.display = 'block';
-          } else {
-            switchWrapper.style.display = 'none';
-          }
-        });
-      }
-
-      // Style auction control buttons
-      const stopBtn = document.getElementById('stop-auction-btn');
-      const cancelBtn = document.getElementById('cancel-auction-btn');
-
-      if (stopBtn) {
-        stopBtn.classList.add('btn');
-        cancelBtn.classList.add('btn', 'btn-danger');
-      }
-
-      // Populate buyback team dropdown with placeholder
-      const buybackTeam = document.getElementById('buyback-team');
-      if (buybackTeam) {
-        // Clear existing options
-        buybackTeam.innerHTML = '<option value="">Choose a team...</option>';
-
-        // Add placeholder teams (will be replaced by real data from socket)
-        const placeholderTeams = [
-          'Green Valley Farmers',
-          'Sunrise Collective',
-          'Mountain Herders',
-          'Riverbend Ranch'
-        ];
-
-        placeholderTeams.forEach(team => {
-          const option = document.createElement('option');
-          option.value = team.toLowerCase().replace(/\s+/g, '-');
-          option.textContent = team;
-          buybackTeam.appendChild(option);
-        });
-      }
-
-      // Initialize with login screen
-      if (document.getElementById('admin-dashboard').style.display === 'none') {
-        document.getElementById('admin-login').style.display = 'flex';
-      }
-    });
-  </script>
 </body>
 
 </html>
