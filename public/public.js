@@ -122,52 +122,53 @@ socket.on("auction:cancelled", () => {
   socket.emit("state:request");
 });
 // Add this socket listener to public.js - around line 55-60, after the other socket.on handlers
-socket.on("auction:animal:revealed", ({ animalType }) => {
-  console.log("Public: Animal revealed by admin", animalType);
+// Unified reveal handler — covers single animal, single gadget, and mixed bundles
+function handleBundleReveal({ animalTypes, gadgetTypes, isBundle }) {
+  const animals = animalTypes || [];
+  const gadgets = gadgetTypes || [];
+  const totalItems = animals.length + gadgets.length;
+  if (totalItems === 0) return;
 
-  if (animalType) {
-    // Show the revealed animal immediately
-    showAnimalImage(animalType);
-
-    // Also update the current state
-    if (currentState?.auction) {
-      currentState.auction.animalType = animalType;
+  if (isBundle || totalItems > 1) {
+    // Show super.png for any bundle
+    const animalIcon = document.getElementById("animal-icon-large");
+    const animalName = document.getElementById("animal-name-large");
+    if (animalIcon) {
+      animalIcon.innerHTML = "";
+      const img = document.createElement("img");
+      img.src = "/images/super.png";
+      img.alt = "Bundle";
+      img.style.cssText = "width:100%;height:100%;object-fit:contain;";
+      img.onerror = function() { animalIcon.innerHTML = "<div style='font-size:5rem;display:flex;align-items:center;justify-content:center;height:100%;'>🎁</div>"; };
+      animalIcon.appendChild(img);
     }
-
-    // Trigger reveal animation
-    animateReveal();
-
-    // If in side-by-side layout, sync to huge display
-    if (window.syncImageToHugeDisplay) {
-      setTimeout(() => {
-        window.syncImageToHugeDisplay();
-      }, 100);
-    }
+    if (animalName) animalName.textContent = "🎁 Bundle x" + totalItems;
+  } else if (animals.length === 1) {
+    showAnimalImage(animals[0]);
+  } else if (gadgets.length === 1) {
+    showGadgetImage(gadgets[0]);
   }
+
+  if (currentState?.auction) {
+    if (animals.length > 0) currentState.auction.animalType = animals[0];
+    if (gadgets.length > 0) currentState.auction.gadgetType = gadgets[0];
+    currentState.auction._revealedAnimalTypes = animals;
+    currentState.auction._revealedGadgetTypes = gadgets;
+  }
+
+  animateReveal();
+  if (window.syncImageToHugeDisplay) {
+    setTimeout(() => { window.syncImageToHugeDisplay(); }, 100);
+  }
+}
+
+socket.on("auction:bundle:revealed", handleBundleReveal);
+// Keep old event names working too (backward compat)
+socket.on("auction:animal:revealed", ({ animalType, animalTypes }) => {
+  handleBundleReveal({ animalTypes: animalTypes || (animalType ? [animalType] : []), gadgetTypes: [], isBundle: false });
 });
-
-socket.on("auction:gadget:revealed", ({ gadgetType }) => {
-  console.log("Public: Gadget revealed by admin", gadgetType);
-
-  if (gadgetType) {
-    // Show the revealed gadget immediately
-    showGadgetImage(gadgetType);
-
-    // Update current state
-    if (currentState?.auction) {
-      currentState.auction.gadgetType = gadgetType;
-    }
-
-    // Trigger reveal animation
-    animateReveal();
-
-    // Sync to huge display if needed
-    if (window.syncImageToHugeDisplay) {
-      setTimeout(() => {
-        window.syncImageToHugeDisplay();
-      }, 100);
-    }
-  }
+socket.on("auction:gadget:revealed", ({ gadgetType, gadgetTypes }) => {
+  handleBundleReveal({ animalTypes: [], gadgetTypes: gadgetTypes || (gadgetType ? [gadgetType] : []), isBundle: false });
 });
 
 // Render Public State
@@ -198,7 +199,22 @@ function renderPublicState(state) {
 
     // Show podium content
     // NEW - switch gadget shows image, only blind-with-no-reveal shows mystery box:
-if (auction.itemCategory === "gadget") {
+if (auction.bundleCount != null && auction.bundleCount > 1) {
+    // Super Bundle — show super.png immediately (before reveal)
+    document.getElementById("animal-display").style.display = "flex";
+    document.getElementById("mystery-box").style.display = "none";
+    const nameEl = document.getElementById("animal-name-large");
+    const iconEl = document.getElementById("animal-icon-large");
+    if (nameEl) nameEl.textContent = "🎁 Super Bundle x" + auction.bundleCount;
+    if (iconEl) {
+      const img = document.createElement("img");
+      img.src = "/images/super.png";
+      img.style.cssText = "width:100%;height:100%;object-fit:contain;border-radius:12px;";
+      img.onerror = function() { iconEl.textContent = "🎁"; };
+      iconEl.innerHTML = "";
+      iconEl.appendChild(img);
+    }
+  } else if (auction.itemCategory === "gadget") {
   if (auction.auctionType === "blind" && !auction.gadgetType) {
     document.getElementById("animal-display").style.display = "none";
     document.getElementById("mystery-box").style.display = "block";
@@ -327,6 +343,68 @@ function renderTopTeams(state) {
 // Show animal with ACTUAL IMAGE
 
 // Show gadget with image on the public podium
+function showBundleDisplay(types, category) {
+  const animalEmojis = {
+    cow:"🐄", bull:"🐂", goat:"🐐", sheep:"🐑", chicken:"🐔",
+    rooster:"🐓", doe:"🦌", buck:"🦌", cat:"🐱", dog:"🐶"
+  };
+  const gadgetEmojis = {
+    cow_milker:"🪣", bull_harness:"🧰", goat_bell:"🔔", sheep_shears:"✂️",
+    chicken_nest:"🪺", rooster_whistle:"📯", doe_saltlick:"🧂",
+    buck_antler_oil:"🧴", cat_yarnball:"🧶", dog_treats:"🦴"
+  };
+  const animalIcon = document.getElementById("animal-icon-large");
+  const animalName = document.getElementById("animal-name-large");
+  if (!animalIcon || !animalName) return;
+
+  // Build a grid of images (with emoji fallback) for each item in the bundle
+  animalIcon.innerHTML = "";
+  const grid = document.createElement("div");
+  grid.style.cssText = "display:flex;flex-wrap:wrap;justify-content:center;align-items:center;gap:8px;width:100%;";
+
+  types.forEach((type) => {
+    const cell = document.createElement("div");
+    cell.style.cssText = "display:flex;flex-direction:column;align-items:center;gap:4px;";
+
+    if (category === "animal") {
+      const imgSrc = animalImages[type];
+      const label = animalDisplayNames[type] || type;
+      const emoji = animalEmojis[type] || "🐾";
+      const img = document.createElement("img");
+      // Size shrinks as bundle grows so everything fits
+      const size = types.length <= 2 ? "120px" : types.length <= 4 ? "90px" : "70px";
+      img.style.cssText = "width:" + size + ";height:" + size + ";object-fit:cover;border-radius:12px;border:2px solid #c8a96e;";
+      img.src = imgSrc;
+      img.alt = label;
+      img.onerror = function() { img.replaceWith(Object.assign(document.createElement("span"), { textContent: emoji, style: "font-size:" + size + ";" })); };
+      const lbl = document.createElement("span");
+      lbl.textContent = label;
+      lbl.style.cssText = "font-size:0.7rem;color:#f8f4e8;font-weight:600;text-align:center;";
+      cell.appendChild(img);
+      cell.appendChild(lbl);
+    } else {
+      const imgSrc = gadgetImages[type];
+      const name = gadgetNames[type] || type;
+      const emoji = gadgetEmojis[type] || "🧩";
+      const img = document.createElement("img");
+      const size = types.length <= 2 ? "120px" : types.length <= 4 ? "90px" : "70px";
+      img.style.cssText = "width:" + size + ";height:" + size + ";object-fit:cover;border-radius:12px;border:2px solid #c8a96e;";
+      img.src = imgSrc;
+      img.alt = name;
+      img.onerror = function() { img.replaceWith(Object.assign(document.createElement("span"), { textContent: emoji, style: "font-size:" + size + ";" })); };
+      const lbl = document.createElement("span");
+      lbl.textContent = name;
+      lbl.style.cssText = "font-size:0.7rem;color:#f8f4e8;font-weight:600;text-align:center;";
+      cell.appendChild(img);
+      cell.appendChild(lbl);
+    }
+    grid.appendChild(cell);
+  });
+
+  animalIcon.appendChild(grid);
+  animalName.textContent = "🎁 Bundle x" + types.length;
+}
+
 function showGadgetImage(gadgetType) {
   const animalIcon = document.getElementById("animal-icon-large");
   const animalName = document.getElementById("animal-name-large");

@@ -114,7 +114,7 @@ function getGadgetData(type) {
     chicken_nest:    { name: "Chicken Nest",       emoji: "🪺", boosts: "Chicken" },
     rooster_whistle: { name: "Rooster Whistle",    emoji: "📯", boosts: "Rooster" },
     doe_saltlick:    { name: "Doe Salt Lick",      emoji: "🧂", boosts: "Doe" },
-    buck_antler_oil: { name: "Buck Serum Oil",    emoji: "🧴", boosts: "Buck" },
+    buck_antler_oil: { name: "Buck Serum Oil",     emoji: "🧴", boosts: "Buck" },
     cat_yarnball:    { name: "Cat Silk Yarn Ball", emoji: "🧶", boosts: "Cat" },
     dog_treats:      { name: "Dog Treats",         emoji: "🦴", boosts: "Dog" },
   };
@@ -192,6 +192,12 @@ socket.on("team:login:error", ({ message }) => {
 
 socket.on("user:state", (state) => {
   console.log("Full User State Received", state);
+  if (currentState && currentState.auction && state.auction &&
+      currentState.auction.id === state.auction.id) {
+    state.auction._revealedAnimalTypes = currentState.auction._revealedAnimalTypes;
+    state.auction._revealedGadgetTypes = currentState.auction._revealedGadgetTypes;
+    state.auction._isBundle = currentState.auction._isBundle;
+  }
   currentState = state;
   renderState(state);
   if (selectedTradeTargetTeamId) {
@@ -218,37 +224,111 @@ socket.on("auction:ended", ({ winnerId, animalType }) => {
   document.getElementById("auction-status").innerHTML = '<p class="muted">Auction Ended. Waiting for next round...</p>';
 });
 
-socket.on("auction:animal:revealed", ({ animalType }) => {
-  if (currentState && currentState.auction) {
-    currentState.auction.animalType = animalType;
-    renderState(currentState);
-  }
+// Unified reveal — handles single animal, single gadget, and mixed bundles
+function handleBundleRevealUser({ animalTypes, gadgetTypes, isBundle }) {
+  if (!currentState || !currentState.auction) return;
+  const animals = animalTypes || [];
+  const gadgets = gadgetTypes || [];
+  const totalItems = animals.length + gadgets.length;
+  currentState.auction._revealedAnimalTypes = animals;
+  currentState.auction._revealedGadgetTypes = gadgets;
+  currentState.auction._isBundle = isBundle || totalItems > 1;
+  if (animals.length > 0) currentState.auction.animalType = animals[0];
+  if (gadgets.length > 0) currentState.auction.gadgetType = gadgets[0];
+  renderState(currentState);
+}
+
+socket.on("auction:bundle:revealed", handleBundleRevealUser);
+socket.on("auction:animal:revealed", ({ animalType, animalTypes }) => {
+  handleBundleRevealUser({ animalTypes: animalTypes || (animalType ? [animalType] : []), gadgetTypes: [], isBundle: false });
+});
+socket.on("auction:gadget:revealed", ({ gadgetType, gadgetTypes }) => {
+  handleBundleRevealUser({ animalTypes: [], gadgetTypes: gadgetTypes || (gadgetType ? [gadgetType] : []), isBundle: false });
 });
 
-// --- Switch & Buyback Events ---
-
+// --- SWITCH FIX: robust handling for animal↔gadget swaps ---
 socket.on("switch:pending", (offer) => {
   console.log("Switch pending:", offer);
   const modal = document.getElementById("switch-modal");
   const setTxt = (id, txt) => { const el = document.getElementById(id); if (el) el.textContent = txt; };
   const optionsDiv = modal.querySelector(".switch-options");
-  if (offer.itemCategory === "gadget") {
-    const original = getGadgetData(offer.originalGadget);
-    setTxt("switch-animal-name", original.name + " (Gadget)");
-    if (optionsDiv) {
-      optionsDiv.innerHTML =
-        "<button class='btn-accept' onclick=\"handleSwitchChoice('accept')\">Keep " + original.emoji + " " + original.name + "</button>" +
-        "<button class='btn-switch' onclick=\"handleSwitchChoice('switch')\">Switch to Mystery Gadget or Animal</button>";
+  if (!optionsDiv) return;
+
+  // Determine original item type and name
+  let originalType = offer.itemCategory; // "animal" or "gadget"
+  let originalName = "";
+  let originalEmoji = "";
+  let switchTargetType = null;
+  let switchTargetName = "";
+  let switchTargetEmoji = "";
+
+  if (originalType === "gadget" && offer.originalGadget) {
+    const gadget = getGadgetData(String(offer.originalGadget).toLowerCase().trim());
+    originalName = gadget.name;
+    originalEmoji = gadget.emoji;
+    // If switch target is provided (e.g., for known swap), use it
+    if (offer.switchTargetGadget) {
+      const target = getGadgetData(String(offer.switchTargetGadget).toLowerCase().trim());
+      switchTargetType = "gadget";
+      switchTargetName = target.name;
+      switchTargetEmoji = target.emoji;
+    }
+  } else if (originalType === "animal" && offer.originalAnimal) {
+    const animal = getAnimalData(String(offer.originalAnimal).toLowerCase().trim());
+    originalName = animal.displayName;
+    originalEmoji = animal.gender === "female" ? "🐮" : "🐂"; // simple fallback
+    if (offer.switchTargetAnimal) {
+      const target = getAnimalData(String(offer.switchTargetAnimal).toLowerCase().trim());
+      switchTargetType = "animal";
+      switchTargetName = target.displayName;
+      switchTargetEmoji = target.gender === "female" ? "🐮" : "🐂";
+    } else if (offer.switchTargetGadget) {
+      const target = getGadgetData(String(offer.switchTargetGadget).toLowerCase().trim());
+      switchTargetType = "gadget";
+      switchTargetName = target.name;
+      switchTargetEmoji = target.emoji;
     }
   } else {
-    const original = getAnimalData(offer.originalAnimal);
-    setTxt("switch-animal-name", original.displayName);
-    if (optionsDiv) {
-      optionsDiv.innerHTML =
-        "<button class='btn-accept' onclick=\"handleSwitchChoice('accept')\">Keep " + original.displayName + "</button>" +
-        "<button class='btn-switch' onclick=\"handleSwitchChoice('switch')\">Switch to Mystery Animal or Gadget</button>";
+    // Fallback: detect from presence of fields
+    if (offer.originalAnimal) {
+      const animal = getAnimalData(String(offer.originalAnimal).toLowerCase().trim());
+      originalName = animal.displayName;
+      originalEmoji = "";
+      originalType = "animal";
+    } else if (offer.originalGadget) {
+      const gadget = getGadgetData(String(offer.originalGadget).toLowerCase().trim());
+      originalName = gadget.name;
+      originalEmoji = gadget.emoji;
+      originalType = "gadget";
+    }
+    if (offer.switchTargetAnimal) {
+      const target = getAnimalData(String(offer.switchTargetAnimal).toLowerCase().trim());
+      switchTargetType = "animal";
+      switchTargetName = target.displayName;
+    } else if (offer.switchTargetGadget) {
+      const target = getGadgetData(String(offer.switchTargetGadget).toLowerCase().trim());
+      switchTargetType = "gadget";
+      switchTargetName = target.name;
+      switchTargetEmoji = target.emoji;
     }
   }
+
+  // Build modal text
+  if (originalType === "gadget") {
+    setTxt("switch-animal-name", originalName + " (Gadget)");
+  } else {
+    setTxt("switch-animal-name", originalName);
+  }
+
+  // Prepare buttons
+  let acceptButtonText = (originalType === "gadget") ? `Keep ${originalEmoji} ${originalName}` : `Keep ${originalName}`;
+let switchButtonText = "Switch to Mystery Animal or Gadget";
+
+optionsDiv.innerHTML = `
+  <button class='btn-accept' onclick="handleSwitchChoice('accept')">${acceptButtonText}</button>
+  <button class='btn-switch' onclick="handleSwitchChoice('switch')">${switchButtonText}</button>
+`;
+
   modal.style.display = "flex";
   switchChoiceData = offer;
 });
@@ -319,9 +399,31 @@ function renderState(state) {
       const statusEl = document.getElementById("auction-status");
       if (statusEl) statusEl.innerHTML = '<p class="success">Auction Active</p>';
 
-      if (auction.itemCategory === "gadget" && auction.gadgetType) {
-        const gd = getGadgetData(auction.gadgetType);
-        const img = getGadgetImage(auction.gadgetType);
+      const _revealedAnimals = auction._revealedAnimalTypes?.length || 0;
+      const _revealedGadgets = auction._revealedGadgetTypes?.length || 0;
+      const _totalRevealedItems = _revealedAnimals + _revealedGadgets;
+      const _isBlindBundle = (auction.bundleCount != null && auction.bundleCount > 1);
+      const _isRevealed = _totalRevealedItems > 1 || auction._isBundle;
+
+      if (_isBlindBundle && !_isRevealed) {
+        if (iconContainer) iconContainer.innerHTML = "<div style='font-size:3rem;display:flex;align-items:center;justify-content:center;height:100%;'>🎁</div>";
+        setText("animal-name", "Mystery Bundle");
+        setText("animal-value", "Hidden until reveal");
+      } else if (_isRevealed) {
+        const totalItems = auction.bundleCount || Math.max(_totalRevealedItems, 2);
+        if (iconContainer) {
+          iconContainer.innerHTML = "";
+          const img = document.createElement("img");
+          img.src = "/images/super.png";
+          img.style.cssText = "width:100%;height:100%;object-fit:contain;border-radius:12px;";
+          img.onerror = function() { iconContainer.innerHTML = "<div style='font-size:3rem;display:flex;align-items:center;justify-content:center;height:100%;'>🎁</div>"; };
+          iconContainer.appendChild(img);
+        }
+        setText("animal-name", "🎁 Super Bundle x" + totalItems);
+        setText("animal-value", "Bundle of " + totalItems + " items");
+      } else if (auction.itemCategory === "gadget" && auction.gadgetType) {
+        const gd = getGadgetData(String(auction.gadgetType || "").toLowerCase().trim());
+        const img = getGadgetImage(String(auction.gadgetType || "").toLowerCase().trim());
         if (iconContainer) {
           iconContainer.innerHTML = "";
           const gadgetImg = document.createElement("img");
@@ -335,7 +437,7 @@ function renderState(state) {
         setText("animal-name", gd.emoji + " " + gd.name);
         setText("animal-value", "Gadget — doubles " + gd.boosts + " pts (no base points)");
       } else if (auction.animalType) {
-        const type = String(auction.animalType).toLowerCase();
+        const type = String(auction.animalType).toLowerCase().trim();
         const animal = getAnimalData(type);
         const img = getAnimalImage(type);
         if (iconContainer) iconContainer.innerHTML = "<img src='" + img + "' style='width:100%; height:100%; object-fit:cover; border-radius:12px;'>";
@@ -416,7 +518,7 @@ function renderFarm(farm) {
   if (emptyFarm) emptyFarm.style.display = "none";
   const animalsByType = {};
   farm.forEach(a => {
-    const t = String(a.type).toLowerCase();
+    const t = String(a.type).toLowerCase().trim();
     animalsByType[t] = (animalsByType[t] || 0) + 1;
   });
   const pairs = getPairStatus(animalsByType);
@@ -457,7 +559,10 @@ function renderGadgets(gadgets) {
   if (empty) empty.style.display = "none";
 
   const counts = {};
-  gadgets.forEach(g => { counts[g.type] = (counts[g.type] || 0) + 1; });
+  gadgets.forEach(g => {
+    const t = String(g.type || "").toLowerCase().trim();
+    if (t) counts[t] = (counts[t] || 0) + 1;
+  });
 
   gadgetDisplay.innerHTML = "";
   Object.entries(counts).forEach(([type, count]) => {
@@ -673,7 +778,7 @@ function populateMyItems(state) {
     const group = document.createElement("optgroup");
     group.label = "Your Animals:";
     myAnimals.forEach(a => {
-      const animal = getAnimalData(a.type);
+      const animal = getAnimalData(String(a.type || "").toLowerCase().trim());
       const opt = document.createElement("option");
       opt.value = "animal:" + a.id;
       opt.textContent = animal.displayName + " (" + animal.baseValue + " pts)";
@@ -686,7 +791,8 @@ function populateMyItems(state) {
     const group = document.createElement("optgroup");
     group.label = "Your Gadgets:";
     myGadgets.forEach(g => {
-      const gd = getGadgetData(g.type);
+      const normalizedType = String(g.type || "").toLowerCase().trim();
+      const gd = getGadgetData(normalizedType);
       const opt = document.createElement("option");
       opt.value = "gadget:" + g.id;
       opt.textContent = gd.emoji + " " + gd.name + " (Gadget)";
@@ -725,7 +831,7 @@ function renderTradeTargetAssets() {
   html += "<div style='display:grid; grid-template-columns: repeat(auto-fill, minmax(120px, 1fr)); gap:12px;'>";
 
   animals.forEach(a => {
-    const type = String(a.type).toLowerCase();
+    const type = String(a.type || "").toLowerCase().trim();
     const img = getAnimalImage(type);
     const animal = getAnimalData(type);
     const isSel = selectedRequestedAnimalId === a.id;
@@ -737,12 +843,13 @@ function renderTradeTargetAssets() {
   });
 
   gadgets.forEach(g => {
-    const gd = getGadgetData(g.type);
-    const img = getGadgetImage(g.type);
+    const normalizedType = String(g.type || "").toLowerCase().trim();
+    const gd = getGadgetData(normalizedType);
+    const img = getGadgetImage(normalizedType);
     const isSel = selectedRequestedGadgetId === g.id;
     html += "<div class='card' data-gadget-id='" + g.id + "' style='padding:10px; cursor:pointer; background:rgba(255,255,255,0.03); border:1px dashed rgba(255,255,255,0.12); opacity:0.9; " + (isSel ? selectedStyle : "") + "'>";
     html += "<div style='width:100%; height:80px; border-radius:10px; overflow:hidden; margin-bottom:8px; background:rgba(0,0,0,0.2); display:flex; align-items:center; justify-content:center;'>";
-    html += "<img src='" + img + "' alt='" + g.type + "' style='width:100%; height:100%; object-fit:cover;'></div>";
+    html += "<img src='" + img + "' alt='" + normalizedType + "' style='width:100%; height:100%; object-fit:cover;'></div>";
     html += "<div style='font-weight:800; font-size:0.95rem;'>" + gd.name + "</div>";
     html += "<div style='opacity:0.75; font-size:0.75rem;'>Gadget • Doubles " + gd.boosts + "</div></div>";
   });
@@ -765,7 +872,7 @@ function renderTradeTargetAssets() {
       const found = animals.find(x => x.id === id);
       if (!found) return;
       selectedRequestedAnimalId = found.id;
-      selectedRequestedAnimalType = String(found.type).toLowerCase();
+      selectedRequestedAnimalType = String(found.type || "").toLowerCase().trim();
       selectedRequestedGadgetId = null;
       selectedRequestedGadgetType = null;
       renderTradeTargetAssets();
@@ -778,7 +885,7 @@ function renderTradeTargetAssets() {
       const found = gadgets.find(x => x.id === id);
       if (!found) return;
       selectedRequestedGadgetId = found.id;
-      selectedRequestedGadgetType = found.type;
+      selectedRequestedGadgetType = String(found.type || "").toLowerCase().trim();
       selectedRequestedAnimalId = null;
       selectedRequestedAnimalType = null;
       renderTradeTargetAssets();
@@ -864,13 +971,13 @@ function showTradeModal(offer) {
   if (offer.type === "money") {
     title.textContent = "💰 Money Offer!";
     if (offer.itemCategory === "gadget") {
-      const gd = getGadgetData(offer.requestedGadgetType);
+      const gd = getGadgetData(String(offer.requestedGadgetType || "").toLowerCase().trim());
       body.innerHTML =
         "<p><strong style='color:var(--gold-primary);'>" + fromName + "</strong> wants to buy your:</p>" +
         "<p style='font-size:1.3rem;margin:10px 0;'><strong>" + gd.emoji + " " + gd.name + "</strong> <span style='opacity:0.7;font-size:0.9rem;'>(Gadget)</span></p>" +
         "<p>Their offer: <strong style='color:var(--money-color);font-size:1.4rem;'>$" + offer.offeredPrice + "</strong></p>";
     } else {
-      const animal = getAnimalData(offer.requestedAnimalType);
+      const animal = getAnimalData(String(offer.requestedAnimalType || "").toLowerCase().trim());
       body.innerHTML =
         "<p><strong style='color:var(--gold-primary);'>" + fromName + "</strong> wants to buy your:</p>" +
         "<p style='font-size:1.3rem;margin:10px 0;'><strong>" + animal.displayName + "</strong></p>" +
@@ -879,11 +986,11 @@ function showTradeModal(offer) {
   } else {
     title.textContent = "🔄 Swap Offer!";
     const theyGive = offer.offeredGadgetType
-      ? getGadgetData(offer.offeredGadgetType).emoji + " " + getGadgetData(offer.offeredGadgetType).name + " (Gadget)"
-      : getAnimalData(offer.offeredAnimalType).displayName;
+      ? getGadgetData(String(offer.offeredGadgetType || "").toLowerCase().trim()).emoji + " " + getGadgetData(String(offer.offeredGadgetType || "").toLowerCase().trim()).name + " (Gadget)"
+      : getAnimalData(String(offer.offeredAnimalType || "").toLowerCase().trim()).displayName;
     const youGive = offer.requestedGadgetType
-      ? getGadgetData(offer.requestedGadgetType).emoji + " " + getGadgetData(offer.requestedGadgetType).name + " (Gadget)"
-      : getAnimalData(offer.requestedAnimalType).displayName;
+      ? getGadgetData(String(offer.requestedGadgetType || "").toLowerCase().trim()).emoji + " " + getGadgetData(String(offer.requestedGadgetType || "").toLowerCase().trim()).name + " (Gadget)"
+      : getAnimalData(String(offer.requestedAnimalType || "").toLowerCase().trim()).displayName;
     body.innerHTML =
       "<p><strong style='color:var(--gold-primary);'>" + fromName + "</strong> wants to swap:</p>" +
       "<div style='display:flex;align-items:center;justify-content:center;gap:16px;margin:14px 0;'>" +
@@ -920,19 +1027,19 @@ function renderOutgoingOffers(offers, allTeams) {
     let detail = "";
     if (offer.type === "money") {
       if (offer.itemCategory === "gadget") {
-        const gd = getGadgetData(offer.requestedGadgetType);
+        const gd = getGadgetData(String(offer.requestedGadgetType || "").toLowerCase().trim());
         detail = "Buy <strong>" + gd.emoji + " " + gd.name + "</strong> (gadget) from " + toName + " for <strong style='color:var(--money-color);'>$" + offer.offeredPrice + "</strong>";
       } else {
-        const animal = getAnimalData(offer.requestedAnimalType);
+        const animal = getAnimalData(String(offer.requestedAnimalType || "").toLowerCase().trim());
         detail = "Buy <strong>" + animal.displayName + "</strong> from " + toName + " for <strong style='color:var(--money-color);'>$" + offer.offeredPrice + "</strong>";
       }
     } else {
       const youGive = offer.offeredGadgetType
-        ? getGadgetData(offer.offeredGadgetType).emoji + " " + getGadgetData(offer.offeredGadgetType).name + " (Gadget)"
-        : getAnimalData(offer.offeredAnimalType).displayName;
+        ? getGadgetData(String(offer.offeredGadgetType || "").toLowerCase().trim()).emoji + " " + getGadgetData(String(offer.offeredGadgetType || "").toLowerCase().trim()).name + " (Gadget)"
+        : getAnimalData(String(offer.offeredAnimalType || "").toLowerCase().trim()).displayName;
       const theyGive = offer.requestedGadgetType
-        ? getGadgetData(offer.requestedGadgetType).emoji + " " + getGadgetData(offer.requestedGadgetType).name + " (Gadget)"
-        : getAnimalData(offer.requestedAnimalType).displayName;
+        ? getGadgetData(String(offer.requestedGadgetType || "").toLowerCase().trim()).emoji + " " + getGadgetData(String(offer.requestedGadgetType || "").toLowerCase().trim()).name + " (Gadget)"
+        : getAnimalData(String(offer.requestedAnimalType || "").toLowerCase().trim()).displayName;
       detail = "Swap your <strong>" + youGive + "</strong> for " + toName + "'s <strong>" + theyGive + "</strong>";
     }
 

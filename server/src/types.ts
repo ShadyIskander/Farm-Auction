@@ -228,6 +228,7 @@ export interface AuctionItem {
   isActive: boolean;
   startedAt: number | null;
   endedAt: number | null;
+  bundleCount?: number; // >1 means this is a multi-item super bundle
 }
 
 export interface Bid {

@@ -19,6 +19,8 @@ window.addEventListener("load", () => {
 let adminState = null;
 let selectedAnimal = null;
 let selectedGadget = null;
+let selectedAnimals = []; // for blind bundle multi-select
+let selectedGadgets = []; // for blind bundle multi-select
 // "animal" or "gadget" — tracks which tab the admin is on
 let currentItemCategory = "animal";
 
@@ -131,6 +133,8 @@ function switchItemTab(category) {
   currentItemCategory = category;
   selectedAnimal = null;
   selectedGadget = null;
+  selectedAnimals = [];
+  selectedGadgets = [];
 
   const animalTab = document.getElementById("item-tab-animal");
   const gadgetTab = document.getElementById("item-tab-gadget");
@@ -141,8 +145,16 @@ function switchItemTab(category) {
 
   if (animalTab) animalTab.classList.toggle("active", category === "animal");
   if (gadgetTab) gadgetTab.classList.toggle("active", category === "gadget");
-  if (animalsSection) animalsSection.style.display = category === "animal" ? "block" : "none";
-  if (gadgetsSection) gadgetsSection.style.display = category === "gadget" ? "block" : "none";
+
+  const isBlind = document.getElementById("auction-type")?.value === "blind";
+  if (isBlind) {
+    // In blind mode: show both sections so admin can mix animals AND gadgets
+    if (animalsSection) animalsSection.style.display = "block";
+    if (gadgetsSection) gadgetsSection.style.display = "block";
+  } else {
+    if (animalsSection) animalsSection.style.display = category === "animal" ? "block" : "none";
+    if (gadgetsSection) gadgetsSection.style.display = category === "gadget" ? "block" : "none";
+  }
 
   // Gadget auctions are always "normal" — hide type selector
   if (auctionTypeRow) auctionTypeRow.style.display = "flex";
@@ -168,61 +180,91 @@ if (auctionStartForm) {
     const startingPrice = Number(document.getElementById("starting-price").value);
     const errorEl = document.getElementById("auction-start-error");
 
-    if (currentItemCategory === "gadget") {
-      const gadgetSelect = document.getElementById("gadget-select");
-      const gadgetType = gadgetSelect ? gadgetSelect.value : selectedGadget;
-      const auctionType = document.getElementById("auction-type").value;
-      const switchTarget = document.getElementById("switch-target").value;
+    const auctionType = document.getElementById("auction-type").value;
+    const switchTarget = document.getElementById("switch-target").value;
 
-      if (!gadgetType || !startingPrice) {
-        if (errorEl) { errorEl.textContent = "Please select a gadget and set a price."; errorEl.style.display = "block"; }
+    if (auctionType === "blind") {
+      // BLIND: can mix animals and gadgets freely across both tabs
+      const animalTypes = selectedAnimals.length > 0 ? selectedAnimals : [];
+      const gadgetTypes = selectedGadgets.length > 0 ? selectedGadgets : [];
+      const totalItems = animalTypes.length + gadgetTypes.length;
+
+      if (totalItems === 0 || !startingPrice) {
+        if (errorEl) { errorEl.textContent = "Please select at least one animal or gadget."; errorEl.style.display = "block"; }
         return;
       }
-      if (auctionType === "switch" && !switchTarget) {
-        if (errorEl) { errorEl.textContent = "Pick a switch target gadget."; errorEl.style.display = "block"; }
-        return;
-      }
+
+      // itemCategory: "animal" if any animals selected, else "gadget"
+      const itemCategory = animalTypes.length > 0 ? "animal" : "gadget";
 
       socket.emit("admin:auction:start", {
-        itemCategory: "gadget",
-        gadgetType,
+        itemCategory,
+        animalTypes,
+        animalType: animalTypes[0] || null,
+        gadgetTypes,
+        gadgetType: gadgetTypes[0] || null,
         startingPrice,
-        auctionType,
-        animalType: null,
-        switchTarget: auctionType === "switch" ? switchTarget : null,
+        auctionType: "blind",
+        switchTarget: null,
       });
 
       if (errorEl) { errorEl.textContent = ""; errorEl.style.display = "none"; }
-      const gd = getGadgetData(gadgetType);
-      updateCurrentAuctionDisplay(gadgetType, startingPrice, auctionType, null, "gadget");
+      if (totalItems > 1) {
+        updateCurrentAuctionDisplay(totalItems + " items", startingPrice, "blind", null, "bundle");
+      } else {
+        updateCurrentAuctionDisplay(animalTypes[0] || gadgetTypes[0], startingPrice, "blind", null, itemCategory);
+      }
 
     } else {
-      const animalSelect = document.getElementById("animal-select");
-      const animalType = animalSelect ? animalSelect.value : selectedAnimal;
-      const auctionType = document.getElementById("auction-type").value;
-      const switchTarget = document.getElementById("switch-target").value;
+      // NORMAL / SWITCH: single item only, from whichever tab is active
+      if (currentItemCategory === "gadget") {
+        const gadgetSelect = document.getElementById("gadget-select");
+        const gadgetType = gadgetSelect ? gadgetSelect.value : selectedGadget;
+        if (!gadgetType || !startingPrice) {
+          if (errorEl) { errorEl.textContent = "Please select a gadget and set a price."; errorEl.style.display = "block"; }
+          return;
+        }
+        if (auctionType === "switch" && !switchTarget) {
+          if (errorEl) { errorEl.textContent = "Pick a switch target gadget."; errorEl.style.display = "block"; }
+          return;
+        }
+        socket.emit("admin:auction:start", {
+          itemCategory: "gadget",
+          gadgetTypes: [gadgetType],
+          gadgetType,
+          animalTypes: [],
+          animalType: null,
+          startingPrice,
+          auctionType,
+          switchTarget: auctionType === "switch" ? switchTarget : null,
+        });
+        if (errorEl) { errorEl.textContent = ""; errorEl.style.display = "none"; }
+        updateCurrentAuctionDisplay(gadgetType, startingPrice, auctionType, null, "gadget");
 
-      if (!animalType || !startingPrice || !auctionType) {
-        if (errorEl) { errorEl.textContent = "Please select an animal and fill all fields."; errorEl.style.display = "block"; }
-        return;
+      } else {
+        const animalSelect = document.getElementById("animal-select");
+        const animalType = animalSelect ? animalSelect.value : selectedAnimal;
+        if (!animalType || !startingPrice) {
+          if (errorEl) { errorEl.textContent = "Please select an animal and fill all fields."; errorEl.style.display = "block"; }
+          return;
+        }
+        if (auctionType === "switch" && !switchTarget) {
+          if (errorEl) { errorEl.textContent = "Pick a switch target animal."; errorEl.style.display = "block"; }
+          return;
+        }
+        socket.emit("admin:auction:start", {
+          itemCategory: "animal",
+          animalTypes: [animalType],
+          animalType,
+          gadgetTypes: [],
+          gadgetType: null,
+          startingPrice,
+          auctionType,
+          switchTarget: auctionType === "switch" ? switchTarget : null,
+        });
+        if (errorEl) { errorEl.textContent = ""; errorEl.style.display = "none"; }
+        updateCurrentAuctionDisplay(animalType, startingPrice, auctionType, null, "animal");
       }
-
-      if (auctionType === "switch" && !switchTarget) {
-        if (errorEl) { errorEl.textContent = "Pick a switch target animal."; errorEl.style.display = "block"; }
-        return;
-      }
-
-      socket.emit("admin:auction:start", {
-        itemCategory: "animal",
-        animalType,
-        startingPrice,
-        auctionType,
-        switchTarget: auctionType === "switch" ? switchTarget : null,
-        gadgetType: null,
-      });
-
-      if (errorEl) { errorEl.textContent = ""; errorEl.style.display = "none"; }
-      updateCurrentAuctionDisplay(animalType, startingPrice, auctionType, null, "animal");
     }
   });
 }
@@ -233,6 +275,26 @@ const switchTargetWrapper = document.getElementById("switch-target-wrapper");
 if (auctionTypeSelect && switchTargetWrapper) {
   auctionTypeSelect.addEventListener("change", () => {
     switchTargetWrapper.style.display = auctionTypeSelect.value === "switch" ? "block" : "none";
+    // Reset multi-select when switching auction type
+    selectedAnimals = [];
+    selectedGadgets = [];
+    selectedAnimal = null;
+    selectedGadget = null;
+    document.querySelectorAll(".animal-card, .gadget-card").forEach(c => c.classList.remove("selected"));
+
+    // When switching to/from blind, update which sections are visible
+    const isBl = auctionTypeSelect.value === "blind";
+    const animSec = document.getElementById("animals-section");
+    const gadSec = document.getElementById("gadgets-section");
+    if (isBl) {
+      // Blind: show both animals AND gadgets so admin can mix and match
+      if (animSec) animSec.style.display = "block";
+      if (gadSec) gadSec.style.display = "block";
+    } else {
+      // Non-blind: show only the currently active tab
+      if (animSec) animSec.style.display = currentItemCategory === "animal" ? "block" : "none";
+      if (gadSec) gadSec.style.display = currentItemCategory === "gadget" ? "block" : "none";
+    }
   });
 }
 
@@ -323,14 +385,25 @@ function renderAdminState(state) {
 
   if (auction && auction.isActive) {
     const isGadget = auction.itemCategory === "gadget";
+    const isBundle = auction.bundleCount != null && auction.bundleCount > 1;
 
-    updateCurrentAuctionDisplay(
-      isGadget ? auction.gadgetType : auction.animalType,
-      auction.currentPrice,
-      auction.auctionType,
-      state.teams?.find(t => t.id === auction.highestBidderId),
-      auction.itemCategory || "animal"
-    );
+    if (isBundle) {
+      updateCurrentAuctionDisplay(
+        auction.bundleCount + " items",
+        auction.currentPrice,
+        auction.auctionType,
+        state.teams?.find(t => t.id === auction.highestBidderId),
+        "bundle"
+      );
+    } else {
+      updateCurrentAuctionDisplay(
+        isGadget ? auction.gadgetType : auction.animalType,
+        auction.currentPrice,
+        auction.auctionType,
+        state.teams?.find(t => t.id === auction.highestBidderId),
+        auction.itemCategory || "animal"
+      );
+    }
 
     // Reveal button — only for blind animal auctions
     const revealBtn = document.getElementById("reveal-animal-btn");
@@ -453,7 +526,9 @@ function updateCurrentAuctionDisplay(itemType, price, auctionType, highestBidder
 
   const currentAnimal = document.getElementById("current-animal");
   if (currentAnimal) {
-    if (itemCategory === "gadget") {
+    if (itemCategory === "bundle") {
+      currentAnimal.textContent = `🎁 Super Bundle (${itemType})`;
+    } else if (itemCategory === "gadget") {
       const gd = getGadgetData(itemType);
       currentAnimal.textContent = `${gd.emoji} ${gd.name} (Gadget — boosts ${gd.boosts})`;
     } else {
@@ -466,9 +541,11 @@ function updateCurrentAuctionDisplay(itemType, price, auctionType, highestBidder
 
   const currentAuctionType = document.getElementById("current-auction-type");
   if (currentAuctionType) {
-    currentAuctionType.textContent = itemCategory === "gadget"
-      ? "Gadget Auction"
-      : (auctionType ? auctionType.charAt(0).toUpperCase() + auctionType.slice(1) : "Normal");
+    currentAuctionType.textContent = itemCategory === "bundle"
+      ? "Super Bundle (Blind)"
+      : itemCategory === "gadget"
+        ? "Gadget Auction"
+        : (auctionType ? auctionType.charAt(0).toUpperCase() + auctionType.slice(1) : "Normal");
   }
 
   const currentAuctionPrice = document.getElementById("current-auction-price");
@@ -626,12 +703,24 @@ document.addEventListener("DOMContentLoaded", function () {
       `;
 
       card.addEventListener("click", function () {
-        document.querySelectorAll(".animal-card").forEach(c => c.classList.remove("selected"));
-        card.classList.add("selected");
-        selectedAnimal = animal.value;
-        if (animalSelect) {
-          animalSelect.value = animal.value;
-          animalSelect.dispatchEvent(new Event("change", { bubbles: true }));
+        const auctionType = document.getElementById("auction-type")?.value;
+        if (auctionType === "blind") {
+          card.classList.toggle("selected");
+          if (card.classList.contains("selected")) {
+            if (!selectedAnimals.includes(animal.value)) selectedAnimals.push(animal.value);
+          } else {
+            selectedAnimals = selectedAnimals.filter(v => v !== animal.value);
+          }
+          selectedAnimal = selectedAnimals[0] || null;
+        } else {
+          document.querySelectorAll(".animal-card").forEach(c => c.classList.remove("selected"));
+          card.classList.add("selected");
+          selectedAnimal = animal.value;
+          selectedAnimals = [animal.value];
+          if (animalSelect) {
+            animalSelect.value = animal.value;
+            animalSelect.dispatchEvent(new Event("change", { bubbles: true }));
+          }
         }
       });
 
@@ -669,12 +758,24 @@ document.addEventListener("DOMContentLoaded", function () {
       `;
 
       card.addEventListener("click", function () {
-        document.querySelectorAll(".gadget-card").forEach(c => c.classList.remove("selected"));
-        card.classList.add("selected");
-        selectedGadget = gadget.value;
-        if (gadgetSelect) {
-          gadgetSelect.value = gadget.value;
-          gadgetSelect.dispatchEvent(new Event("change", { bubbles: true }));
+        const auctionType = document.getElementById("auction-type")?.value;
+        if (auctionType === "blind") {
+          card.classList.toggle("selected");
+          if (card.classList.contains("selected")) {
+            if (!selectedGadgets.includes(gadget.value)) selectedGadgets.push(gadget.value);
+          } else {
+            selectedGadgets = selectedGadgets.filter(v => v !== gadget.value);
+          }
+          selectedGadget = selectedGadgets[0] || null;
+        } else {
+          document.querySelectorAll(".gadget-card").forEach(c => c.classList.remove("selected"));
+          card.classList.add("selected");
+          selectedGadget = gadget.value;
+          selectedGadgets = [gadget.value];
+          if (gadgetSelect) {
+            gadgetSelect.value = gadget.value;
+            gadgetSelect.dispatchEvent(new Event("change", { bubbles: true }));
+          }
         }
       });
 

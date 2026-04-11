@@ -164,18 +164,22 @@ io.on("connection", (socket: Socket) => {
 
   socket.on("admin:auction:start", ({
     animalType,
+    animalTypes,
     startingPrice,
     auctionType,
     switchTarget,
     itemCategory,
     gadgetType,
+    gadgetTypes,
   }: {
     animalType?: string;
+    animalTypes?: string[];
     startingPrice?: number;
     auctionType?: string;
     switchTarget?: string | null;
     itemCategory?: string;
     gadgetType?: string | null;
+    gadgetTypes?: string[] | null;
   }) => {
     const session = sessions.get(socket.id);
     if (!session?.isAdmin) {
@@ -187,42 +191,34 @@ io.on("connection", (socket: Socket) => {
       return;
     }
 
-    const category = itemCategory === "gadget" ? "gadget" : "animal";
+    const resolvedAuctionType = (auctionType ?? "normal") as any;
 
-    if (category === "gadget") {
-      if (typeof gadgetType !== "string") {
-        socket.emit("admin:error", { message: "Gadget type is required for gadget auctions." });
-        return;
-      }
-      const result = game.startAuction(
-        "" as any,
-        startingPrice,
-        (auctionType ?? "normal") as any,
-        (switchTarget ?? null) as any,
-        "gadget",
-        gadgetType as any
-      );
-      if (!result.ok) {
-        socket.emit("admin:error", { message: result.message });
-        return;
-      }
-    } else {
-      if (typeof animalType !== "string" || typeof auctionType !== "string") {
-        socket.emit("admin:error", { message: "Invalid parameters." });
-        return;
-      }
-      const result = game.startAuction(
-        animalType as any,
-        startingPrice,
-        auctionType as any,
-        switchTarget as any,
-        "animal",
-        null
-      );
-      if (!result.ok) {
-        socket.emit("admin:error", { message: result.message });
-        return;
-      }
+    // Resolve arrays — supports single value, array, or mixed bundle
+    const resolvedAnimalTypes: string[] = animalTypes?.length
+      ? animalTypes : animalType ? [animalType] : [];
+    const resolvedGadgetTypes: string[] = gadgetTypes?.length
+      ? gadgetTypes : gadgetType ? [gadgetType] : [];
+
+    const totalItems = resolvedAnimalTypes.length + resolvedGadgetTypes.length;
+    if (totalItems === 0) {
+      socket.emit("admin:error", { message: "Must select at least one animal or gadget." });
+      return;
+    }
+
+    // itemCategory: animal if any animals, else gadget
+    const category: "animal" | "gadget" = resolvedAnimalTypes.length > 0 ? "animal" : "gadget";
+
+    const result = game.startAuction(
+      resolvedAnimalTypes as any,
+      startingPrice,
+      resolvedAuctionType,
+      (switchTarget ?? null) as any,
+      category,
+      resolvedGadgetTypes.length > 0 ? resolvedGadgetTypes as any : null
+    );
+    if (!result.ok) {
+      socket.emit("admin:error", { message: result.message });
+      return;
     }
 
     emitPublicState();
@@ -281,42 +277,34 @@ io.on("connection", (socket: Socket) => {
     io.emit("auction:cancelled");
   });
 
-  socket.on("admin:animal:reveal", () => {
+  // Single reveal handler covers animal, gadget, and mixed bundles
+  const handleReveal = (socket: any) => {
     const session = sessions.get(socket.id);
     if (!session?.isAdmin) {
       socket.emit("admin:error", { message: "Admin access required." });
       return;
     }
-    const result = game.revealAnimal();
+    const result = game.revealBundle();
     if (!result.ok) {
       socket.emit("admin:error", { message: result.message });
       return;
     }
-    console.log(`Admin revealed animal: ${result.animalType}`);
-    io.emit("auction:animal:revealed", { animalType: result.animalType });
-    emitPublicState();
-    emitAdminState();
-    socket.emit("admin:success", { message: `Animal (${result.animalType}) revealed to all viewers.` });
-  });
-
-  socket.on("admin:gadget:reveal", () => {
-    const session = sessions.get(socket.id);
-    if (!session?.isAdmin) {
-      socket.emit("admin:error", { message: "Admin access required." });
-      return;
-    }
-    const result = game.revealGadget();
-    if (!result.ok) {
-      socket.emit("admin:error", { message: result.message });
-      return;
-    }
-    console.log(`Admin revealed gadget: ${result.gadgetType}`);
-    io.emit("auction:gadget:revealed", { gadgetType: result.gadgetType });
+    console.log(`Admin revealed bundle — animals: ${result.animalTypes}, gadgets: ${result.gadgetTypes}`);
+    // Emit a single unified event all clients listen to
+    io.emit("auction:bundle:revealed", {
+      animalTypes: result.animalTypes,
+      gadgetTypes: result.gadgetTypes,
+      isBundle: result.isBundle,
+    });
     emitPublicState();
     emitAdminState();
     sessions.forEach((sess) => { if (sess.teamId) emitUserState(sess.teamId); });
-    socket.emit("admin:success", { message: `Gadget (${result.gadgetType}) revealed to all viewers.` });
-  });
+    socket.emit("admin:success", { message: `Revealed ${result.animalTypes.length + result.gadgetTypes.length} item(s).` });
+  };
+
+  socket.on("admin:animal:reveal", () => handleReveal(socket));
+  socket.on("admin:gadget:reveal", () => handleReveal(socket));
+  socket.on("admin:bundle:reveal", () => handleReveal(socket));
 
   socket.on("switch:choose", ({ choice }: { choice?: string }) => {
     const session = sessions.get(socket.id);
