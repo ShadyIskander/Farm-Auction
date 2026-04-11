@@ -28,19 +28,36 @@ const gadgetImages = {
   cat_yarnball: "/images/gadgets/cat_yarnball.png",
   dog_treats: "/images/gadgets/dog_treats.png",
 };
+window.gadgetImages = gadgetImages;
 
 const gadgetNames = {
   cow_milker: "Cow Milker",
   bull_harness: "Bull Harness",
-  goat_bell: "Goat Bell",
-  sheep_shears: "Sheep Shears",
+  goat_bell: "Sheep Bell",
+  sheep_shears: "Ram Shears",
   chicken_nest: "Chicken Nest",
-  rooster_whistle: "Rooster Whistle",
-  doe_saltlick: "Doe Salt Lick",
-  buck_antler_oil: "Buck Antler Oil",
+  rooster_whistle: "Rooster Compass",
+  doe_saltlick: "Doe Feeder",
+  buck_antler_oil: "Buck Serum Oil",
   cat_yarnball: "Silk Yarn Ball",
   dog_treats: "Dog Treats",
 };
+window.gadgetNames = gadgetNames;
+
+// Gadget boosts map (which animal type each gadget doubles)
+const gadgetBoosts = {
+  cow_milker: "Cow",
+  bull_harness: "Bull",
+  goat_bell: "Sheep",
+  sheep_shears: "Ram",
+  chicken_nest: "Chicken",
+  rooster_whistle: "Rooster",
+  doe_saltlick: "Doe",
+  buck_antler_oil: "Buck",
+  cat_yarnball: "Cat",
+  dog_treats: "Dog",
+};
+window.gadgetBoosts = gadgetBoosts;
 
 // ANIMAL DISPLAY NAMES
 const animalDisplayNames = {
@@ -62,6 +79,7 @@ socket.emit("public:connect");
 // Socket Events
 socket.on("state:update", (state) => {
   currentState = state;
+  window.currentState = state;
   console.log("Public: Received state update", state);
   renderPublicState(state);
 });
@@ -72,11 +90,21 @@ socket.on("auction:started", () => {
   animateAuctionStart();
 });
 
-socket.on("auction:ended", ({ winnerId, animalType }) => {
-  console.log("Public: Auction ended", { winnerId, animalType });
+socket.on("auction:ended", ({ winnerId, animalType, gadgetType, itemCategory }) => {
+  console.log("Public: Auction ended", { winnerId, animalType, gadgetType, itemCategory });
 
-  if (currentState?.auction?.auctionType === "blind" && animalType) {
-    // Reveal animation for blind auctions
+  const isBlind = currentState?.auction?.auctionType === "blind";
+
+  if (isBlind && itemCategory === "gadget" && gadgetType) {
+    // Blind gadget — reveal the gadget image briefly then reset
+    setTimeout(() => {
+      document.getElementById("animal-display").style.display = "flex";
+      document.getElementById("mystery-box").style.display = "none";
+      showGadgetImage(gadgetType);
+      animateReveal();
+    }, 500);
+  } else if (isBlind && animalType) {
+    // Blind animal — reveal animation
     setTimeout(() => {
       showAnimalImage(animalType);
       animateReveal();
@@ -85,7 +113,7 @@ socket.on("auction:ended", ({ winnerId, animalType }) => {
     animateAuctionEnd();
   }
 
-  // Request updated state
+  // Request updated state — server will have isActive=false, which resets display to waiting
   setTimeout(() => socket.emit("state:request"), 1000);
 });
 
@@ -110,6 +138,30 @@ socket.on("auction:animal:revealed", ({ animalType }) => {
     animateReveal();
 
     // If in side-by-side layout, sync to huge display
+    if (window.syncImageToHugeDisplay) {
+      setTimeout(() => {
+        window.syncImageToHugeDisplay();
+      }, 100);
+    }
+  }
+});
+
+socket.on("auction:gadget:revealed", ({ gadgetType }) => {
+  console.log("Public: Gadget revealed by admin", gadgetType);
+
+  if (gadgetType) {
+    // Show the revealed gadget immediately
+    showGadgetImage(gadgetType);
+
+    // Update current state
+    if (currentState?.auction) {
+      currentState.auction.gadgetType = gadgetType;
+    }
+
+    // Trigger reveal animation
+    animateReveal();
+
+    // Sync to huge display if needed
     if (window.syncImageToHugeDisplay) {
       setTimeout(() => {
         window.syncImageToHugeDisplay();
@@ -145,17 +197,23 @@ function renderPublicState(state) {
     console.log("Public: Auction is active, animal type:", auction.animalType);
 
     // Show podium content
-    if (auction.itemCategory === "gadget" && auction.gadgetType) {
-      // Gadget auction - show gadget image
-      document.getElementById("animal-display").style.display = "flex";
-      document.getElementById("mystery-box").style.display = "none";
-      showGadgetImage(auction.gadgetType);
-    } else if (auction.auctionType === "blind" && !auction.animalType) {
+    // NEW - switch gadget shows image, only blind-with-no-reveal shows mystery box:
+if (auction.itemCategory === "gadget") {
+  if (auction.auctionType === "blind" && !auction.gadgetType) {
+    document.getElementById("animal-display").style.display = "none";
+    document.getElementById("mystery-box").style.display = "block";
+    document.getElementById("animal-name-large").textContent = "Mystery Gadget";
+  } else if (auction.gadgetType) {
+    document.getElementById("animal-display").style.display = "flex";
+    document.getElementById("mystery-box").style.display = "none";
+    showGadgetImage(auction.gadgetType);
+  }
+} else if (auction.auctionType === "blind" && !auction.animalType) {
       // Blind auction - show mystery box
       console.log("Public: Showing mystery box (blind auction)");
       document.getElementById("animal-display").style.display = "none";
       document.getElementById("mystery-box").style.display = "block";
-      document.getElementById("animal-name-large").textContent = "Mystery Animal";
+      document.getElementById("animal-name-large").textContent = "Mystery Animal or Gadget";
     } else {
       // Normal animal auction - show animal with IMAGE
       console.log("Public: Showing animal display");
@@ -260,7 +318,6 @@ function renderTopTeams(state) {
           <div style="opacity:0.8; font-weight:800; font-size:0.9rem;">${t.farmValue || 0} pts</div>
         </div>
         <div style="display:flex;flex-wrap:wrap;gap:6px;justify-content:flex-end;max-width:55%;">
-          ${thumbs || '<span style="opacity:0.7;font-size:0.85rem;">—</span>'}
         </div>
       </div>
     `;
@@ -436,8 +493,8 @@ function revealAnimal() {
   return true;
 
 
-  // Not a mystery animal or not a blind auction
-  console.log("Not a mystery animal or not blind auction");
+  // Not a Mystery Animal or Gadget or not a blind auction
+  console.log("Not a Mystery Animal or Gadget or not blind auction");
   return false;
 }
 

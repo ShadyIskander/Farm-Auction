@@ -11,7 +11,8 @@ let selectedTradeTargetTeamId = null;
 let selectedRequestedAnimalId = null;
 let selectedRequestedAnimalType = null;
 let isAuctionActiveNow = false;
-
+let selectedRequestedGadgetId = null;
+let selectedRequestedGadgetType = null;
 // used by the "blocked tab" banner auto-hide
 window.__faBlockedTimer = window.__faBlockedTimer || null;
 
@@ -115,18 +116,18 @@ function getGadgetImage(type) {
 
 function getGadgetData(type) {
   const map = {
-    cow_milker: { name: "Cow Milker", emoji: "🪣" },
-    bull_harness: { name: "Bull Harness", emoji: "🧰" },
-    goat_bell: { name: "Sheep Bell", emoji: "🔔" },
-    sheep_shears: { name: "Ram Shears", emoji: "✂️" },
-    chicken_nest: { name: "Chicken Nest", emoji: "🪺" },
-    rooster_whistle: { name: "Rooster Whistle", emoji: "📯" },
-    doe_saltlick: { name: "Doe Salt Lick", emoji: "🧂" },
-    buck_antler_oil: { name: "Buck Antler Oil", emoji: "🧴" },
-    cat_yarnball: { name: "Cat Silk Yarn Ball", emoji: "🧶" },
-    dog_treats: { name: "Dog Treats", emoji: "🦴" },
+    cow_milker:      { name: "Cow Milker",         emoji: "🪣", boosts: "Cow" },
+    bull_harness:    { name: "Bull Harness",        emoji: "🧰", boosts: "Bull" },
+    goat_bell:       { name: "Sheep Bell",          emoji: "🔔", boosts: "Sheep" },
+    sheep_shears:    { name: "Ram Shears",          emoji: "✂️", boosts: "Ram" },
+    chicken_nest:    { name: "Chicken Nest",        emoji: "🪺", boosts: "Chicken" },
+    rooster_whistle: { name: "Rooster Compass",     emoji: "📯", boosts: "Rooster" },
+    doe_saltlick:    { name: "Doe Feeder",       emoji: "🧂", boosts: "Doe" },
+    buck_antler_oil: { name: "Buck Serum Oil",     emoji: "🧴", boosts: "Buck" },
+    cat_yarnball:    { name: "Cat Silk Yarn Ball",  emoji: "🧶", boosts: "Cat" },
+    dog_treats:      { name: "Dog Treats",          emoji: "🦴", boosts: "Dog" },
   };
-  return map[type] || { name: String(type), emoji: "🧩" };
+  return map[type] || { name: String(type), emoji: "🧩", boosts: "?" };
 }
 
 function getAnimalData(type) {
@@ -254,19 +255,27 @@ socket.on("auction:animal:revealed", ({ animalType }) => {
 socket.on("switch:pending", (offer) => {
   console.log("Switch pending:", offer);
   const modal = document.getElementById("switch-modal");
-
-  const original = getAnimalData(offer.originalAnimal);
-  const target = getAnimalData(offer.switchTarget);
-
   const setTxt = (id, txt) => { const el = document.getElementById(id); if (el) el.textContent = txt; };
-  setTxt("switch-animal-name", original.displayName);
 
   const optionsDiv = modal.querySelector(".switch-options");
-  if (optionsDiv) {
-    optionsDiv.innerHTML = `
-        <button class="btn-accept" onclick="handleSwitchChoice('accept')">Keep ${original.displayName}</button>
-        <button class="btn-switch" onclick="handleSwitchChoice('switch')">Switch to Mystery Animal</button>
+  if (offer.itemCategory === "gadget") {
+    const original = getGadgetData(offer.originalGadget);
+    setTxt("switch-animal-name", original.name + " (Gadget)");
+    if (optionsDiv) {
+      optionsDiv.innerHTML = `
+        <button class="btn-accept" onclick="handleSwitchChoice('accept')">Keep ${original.emoji} ${original.name}</button>
+        <button class="btn-switch" onclick="handleSwitchChoice('switch')">Switch to Mystery Gadget or Animal</button>
       `;
+    }
+  } else {
+    const original = getAnimalData(offer.originalAnimal);
+    setTxt("switch-animal-name", original.displayName);
+    if (optionsDiv) {
+      optionsDiv.innerHTML = `
+        <button class="btn-accept" onclick="handleSwitchChoice('accept')">Keep ${original.displayName}</button>
+        <button class="btn-switch" onclick="handleSwitchChoice('switch')">Switch to Mystery Animal or Gadget</button>
+      `;
+    }
   }
   modal.style.display = "flex";
   switchChoiceData = offer;
@@ -359,7 +368,7 @@ function renderState(state) {
           iconContainer.appendChild(gadgetImg);
         }
         setText("animal-name", gd.emoji + " " + gd.name);
-        setText("animal-value", "Gadget — doubles " + gd.boosts + " score");
+        setText("animal-value", "Gadget — doubles " + gd.boosts + " pts (no base points)");
       } else if (auction.animalType) {
         // Normal animal auction — show animal image
         const type = String(auction.animalType).toLowerCase();
@@ -371,7 +380,7 @@ function renderState(state) {
       } else {
         // Blind animal auction — mystery box
         if (iconContainer) iconContainer.innerHTML = '<div style="font-size: 3rem; display: flex; align-items: center; justify-content: center; height:100%;">🎁</div>';
-        setText("animal-name", "Mystery Animal");
+        setText("animal-name", "Mystery Animal or Gadget");
         setText("animal-value", "Hidden until reveal");
       }
 
@@ -514,7 +523,7 @@ function renderGadgets(gadgets) {
       <div class="stall-count">${count}</div>
       <div class="stall-info">
         <div class="stall-name">${gd.name}</div>
-        <div class="stall-gender" style="opacity:0.8;">Gadget</div>
+        <div class="stall-gender" style="opacity:0.8;">Doubles ${gd.boosts} pts</div>
       </div>
     `;
 
@@ -797,33 +806,62 @@ function renderTradeTargetAssets() {
       ${gadgets.map(g => {
         const gd = getGadgetData(g.type);
         const img = getGadgetImage(g.type);
+        const isSel = selectedRequestedGadgetId === g.id;
         return `
-          <div class="card" style="padding:10px; background:rgba(255,255,255,0.03); border:1px dashed rgba(255,255,255,0.12); opacity:0.9;">
+          <div class="card" data-gadget-id="${g.id}" style="padding:10px; cursor:pointer; background:rgba(255,255,255,0.03); border:1px dashed rgba(255,255,255,0.12); opacity:0.9; ${isSel ? selectedStyle : ""}">
             <div style="width:100%; height:80px; border-radius:10px; overflow:hidden; margin-bottom:8px; background:rgba(0,0,0,0.2); display:flex; align-items:center; justify-content:center;">
               <img src="${img}" alt="${g.type}" style="width:100%; height:100%; object-fit:cover;" onerror="this.style.display='none'; this.parentElement.innerHTML='${gd.emoji}'; this.parentElement.style.fontSize='2rem';" />
             </div>
             <div style="font-weight:800; font-size:0.95rem;">${gd.name}</div>
-            <div style="opacity:0.75; font-size:0.75rem;">Gadget</div>
+            <div style="opacity:0.75; font-size:0.75rem;">Gadget • Doubles ${gd.boosts}</div>
           </div>
         `;
       }).join("")}
     </div>
     <div style="margin-top:10px; opacity:0.8; font-size:0.85rem;">
-      Selected: <strong>${selectedRequestedAnimalType ? getAnimalData(selectedRequestedAnimalType).displayName : "None"}</strong>
+      Selected: <strong>${
+        selectedRequestedAnimalType ? getAnimalData(selectedRequestedAnimalType).displayName :
+        selectedRequestedGadgetType ? getGadgetData(selectedRequestedGadgetType).name + " (Gadget)" :
+        "None"
+      }</strong>
     </div>
   `;
 
   // Bind click handlers to animal cards
   container.querySelectorAll("[data-animal-id]").forEach(el => {
-    el.addEventListener("click", () => {
-      const id = el.getAttribute("data-animal-id");
-      const found = animals.find(x => x.id === id);
-      if (!found) return;
-      selectedRequestedAnimalId = found.id;
-      selectedRequestedAnimalType = String(found.type).toLowerCase();
-      renderTradeTargetAssets();
-    });
+  el.addEventListener("click", () => {
+    const id = el.getAttribute("data-animal-id");
+    const found = animals.find(x => x.id === id);
+    if (!found) return;
+
+    selectedRequestedAnimalId = found.id;
+    selectedRequestedAnimalType = String(found.type).toLowerCase();
+
+    // 🔥 ADD THIS (clear gadget selection)
+    selectedRequestedGadgetId = null;
+    selectedRequestedGadgetType = null;
+
+    renderTradeTargetAssets();
   });
+});
+
+// Bind click handlers to gadget cards
+container.querySelectorAll("[data-gadget-id]").forEach(el => {
+  el.addEventListener("click", () => {
+    const id = el.getAttribute("data-gadget-id");
+    const found = gadgets.find(x => x.id === id);
+    if (!found) return;
+
+    selectedRequestedGadgetId = found.id;
+    selectedRequestedGadgetType = found.type;
+
+    // already correct
+    selectedRequestedAnimalId = null;
+    selectedRequestedAnimalType = null;
+
+    renderTradeTargetAssets();
+  });
+});
 }
 
 function populateMyAnimals(state) {
@@ -911,17 +949,22 @@ function sendTradeOfferUnified() {
   }
 
   if (!toTeamId) { if (errEl) errEl.textContent = "Please select a team."; return; }
-  if (!selectedRequestedAnimalId) { if (errEl) errEl.textContent = "Please select an animal from their farm."; return; }
+  if (!selectedRequestedAnimalId && !selectedRequestedGadgetId) { if (errEl) errEl.textContent = "Please select an animal or gadget from their farm."; return; }
   if (!cashRadio) { if (errEl) errEl.textContent = "Payment selector missing."; return; }
 
   if (cashRadio.checked) {
     const offeredPrice = Number(document.getElementById("trade-cash-amount")?.value);
     if (!offeredPrice || offeredPrice <= 0) { if (errEl) errEl.textContent = "Please enter a valid cash amount."; return; }
-    socket.emit("trade:offer:money", { toTeamId, requestedAnimalId: selectedRequestedAnimalId, offeredPrice });
+    if (selectedRequestedGadgetId) {
+      socket.emit("trade:offer:money:gadget", { toTeamId, requestedGadgetId: selectedRequestedGadgetId, offeredPrice });
+    } else {
+      socket.emit("trade:offer:money", { toTeamId, requestedAnimalId: selectedRequestedAnimalId, offeredPrice });
+    }
     if (errEl) errEl.textContent = "";
     const amt = document.getElementById("trade-cash-amount");
     if (amt) amt.value = "";
   } else {
+    if (selectedRequestedGadgetId) { if (errEl) errEl.textContent = "Swap offers are only supported for animals, not gadgets. Use cash instead."; return; }
     const offeredAnimalId = document.getElementById("trade-swap-my-animal")?.value;
     if (!offeredAnimalId) { if (errEl) errEl.textContent = "Please select your animal to switch with."; return; }
     socket.emit("trade:offer:swap", { toTeamId, offeredAnimalId, requestedAnimalId: selectedRequestedAnimalId });
@@ -939,13 +982,22 @@ function showTradeModal(offer) {
   const fromName = fromTeam ? fromTeam.username : "Another Team";
 
   if (offer.type === "money") {
-    const animal = getAnimalData(offer.requestedAnimalType);
     title.textContent = "💰 Money Offer!";
-    body.innerHTML = `
-      <p><strong style="color:var(--gold-primary);">${fromName}</strong> wants to buy your:</p>
-      <p style="font-size:1.3rem;margin:10px 0;"><strong>${animal.displayName}</strong></p>
-      <p>Their offer: <strong style="color:var(--money-color);font-size:1.4rem;">$${offer.offeredPrice}</strong></p>
-    `;
+    if (offer.itemCategory === "gadget") {
+      const gd = getGadgetData(offer.requestedGadgetType);
+      body.innerHTML = `
+        <p><strong style="color:var(--gold-primary);">${fromName}</strong> wants to buy your:</p>
+        <p style="font-size:1.3rem;margin:10px 0;"><strong>${gd.emoji} ${gd.name}</strong> <span style="opacity:0.7;font-size:0.9rem;">(Gadget)</span></p>
+        <p>Their offer: <strong style="color:var(--money-color);font-size:1.4rem;">$${offer.offeredPrice}</strong></p>
+      `;
+    } else {
+      const animal = getAnimalData(offer.requestedAnimalType);
+      body.innerHTML = `
+        <p><strong style="color:var(--gold-primary);">${fromName}</strong> wants to buy your:</p>
+        <p style="font-size:1.3rem;margin:10px 0;"><strong>${animal.displayName}</strong></p>
+        <p>Their offer: <strong style="color:var(--money-color);font-size:1.4rem;">$${offer.offeredPrice}</strong></p>
+      `;
+    }
   } else {
     const theirAnimal = getAnimalData(offer.offeredAnimalType);
     const yourAnimal = getAnimalData(offer.requestedAnimalType);
@@ -992,8 +1044,13 @@ function renderOutgoingOffers(offers, allTeams) {
 
     let detail = "";
     if (offer.type === "money") {
-      const animal = getAnimalData(offer.requestedAnimalType);
-      detail = `Buy <strong>${animal.displayName}</strong> from ${toName} for <strong style="color:var(--money-color);">$${offer.offeredPrice}</strong>`;
+      if (offer.itemCategory === "gadget") {
+        const gd = getGadgetData(offer.requestedGadgetType);
+        detail = `Buy <strong>${gd.emoji} ${gd.name}</strong> (gadget) from ${toName} for <strong style="color:var(--money-color);">$${offer.offeredPrice}</strong>`;
+      } else {
+        const animal = getAnimalData(offer.requestedAnimalType);
+        detail = `Buy <strong>${animal.displayName}</strong> from ${toName} for <strong style="color:var(--money-color);">$${offer.offeredPrice}</strong>`;
+      }
     } else {
       const mine = getAnimalData(offer.offeredAnimalType);
       const theirs = getAnimalData(offer.requestedAnimalType);

@@ -42,14 +42,14 @@ function getGadgetImage(type) {
 
 function getGadgetData(type) {
   const map = {
-    cow_milker:      { name: "Cow Milker",      emoji: "🪣", boosts: "Cow",     basePrice: 14 },
+    cow_milker:      { name: "Cow Milker",      emoji: "🪣", boosts: "Cow" },
     bull_harness:    { name: "Bull Harness",    emoji: "🧰", boosts: "Bull",    basePrice: 16 },
-    goat_bell:       { name: "Sheep Bell",       emoji: "🔔", boosts: "Goat",    basePrice: 10 },
-    sheep_shears:    { name: "Ram Shears",    emoji: "✂️", boosts: "Sheep",   basePrice: 12 },
+    goat_bell:       { name: "Sheep Bell",       emoji: "🔔", boosts: "Sheep",    basePrice: 10 },
+    sheep_shears:    { name: "Ram Shears",    emoji: "✂️", boosts: "Ram",   basePrice: 12 },
     chicken_nest:    { name: "Chicken Nest",    emoji: "🪺", boosts: "Chicken", basePrice: 8  },
-    rooster_whistle: { name: "Rooster Whistle", emoji: "📯", boosts: "Rooster", basePrice: 9  },
-    doe_saltlick:    { name: "Doe Salt Lick",   emoji: "🧂", boosts: "Doe",     basePrice: 11 },
-    buck_antler_oil: { name: "Buck Antler Oil", emoji: "🧴", boosts: "Buck",    basePrice: 13 },
+    rooster_whistle: { name: "Rooster Compass", emoji: "📯", boosts: "Rooster", basePrice: 9  },
+    doe_saltlick:    { name: "Doe Feeder",   emoji: "🧂", boosts: "Doe",     basePrice: 11 },
+    buck_antler_oil: { name: "Buck Serum Oil", emoji: "🧴", boosts: "Buck",    basePrice: 13 },
     cat_yarnball:    { name: "Cat Silk Yarn Ball",  emoji: "🧶", boosts: "Cat",     basePrice: 9  },
     dog_treats:      { name: "Dog Treats",      emoji: "🦴", boosts: "Dog",     basePrice: 9  },
   };
@@ -58,16 +58,16 @@ function getGadgetData(type) {
 
 // Full gadgets list for card grid
 const gadgets = [
-  { value: "cow_milker",      name: "Cow Milker",      boosts: "Cow",     basePrice: 14, image: "/images/gadgets/cow_milker.png",      emoji: "🪣" },
-  { value: "bull_harness",    name: "Bull Harness",    boosts: "Bull",    basePrice: 16, image: "/images/gadgets/bull_harness.png",    emoji: "🧰" },
-  { value: "goat_bell",       name: "Sheep Bell",       boosts: "Goat",    basePrice: 10, image: "/images/gadgets/goat_bell.png",       emoji: "🔔" },
-  { value: "sheep_shears",    name: "Ram Shears",    boosts: "Sheep",   basePrice: 12, image: "/images/gadgets/sheep_shears.png",    emoji: "✂️" },
-  { value: "chicken_nest",    name: "Chicken Nest",    boosts: "Chicken", basePrice: 8,  image: "/images/gadgets/chicken_nest.png",    emoji: "🪺" },
-  { value: "rooster_whistle", name: "Rooster Whistle", boosts: "Rooster", basePrice: 9,  image: "/images/gadgets/rooster_whistle.png", emoji: "📯" },
-  { value: "doe_saltlick",    name: "Doe Salt Lick",   boosts: "Doe",     basePrice: 11, image: "/images/gadgets/doe_saltlick.png",    emoji: "🧂" },
-  { value: "buck_antler_oil", name: "Buck Antler Oil", boosts: "Buck",    basePrice: 13, image: "/images/gadgets/buck_antler_oil.png", emoji: "🧴" },
-  { value: "cat_yarnball",    name: "Cat Silk Yarn Ball",  boosts: "Cat",     basePrice: 9,  image: "/images/gadgets/cat_yarnball.png",    emoji: "🧶" },
-  { value: "dog_treats",      name: "Dog Treats",      boosts: "Dog",     basePrice: 9,  image: "/images/gadgets/dog_treats.png",      emoji: "🦴" },
+  { value: "cow_milker",      name: "Cow Milker",      boosts: "Cow",  image: "/images/gadgets/cow_milker.png",      emoji: "🪣" },
+  { value: "bull_harness",    name: "Bull Harness",    boosts: "Bull",     image: "/images/gadgets/bull_harness.png",    emoji: "🧰" },
+  { value: "goat_bell",       name: "Sheep Bell",       boosts: "Sheep",     image: "/images/gadgets/goat_bell.png",       emoji: "🔔" },
+  { value: "sheep_shears",    name: "Ram Shears",    boosts: "Ram",    image: "/images/gadgets/sheep_shears.png",    emoji: "✂️" },
+  { value: "chicken_nest",    name: "Chicken Nest",    boosts: "Chicken",   image: "/images/gadgets/chicken_nest.png",    emoji: "🪺" },
+  { value: "rooster_whistle", name: "Rooster Compass", boosts: "Rooster",   image: "/images/gadgets/rooster_whistle.png", emoji: "📯" },
+  { value: "doe_saltlick",    name: "Doe Feeder",   boosts: "Doe",      image: "/images/gadgets/doe_saltlick.png",    emoji: "🧂" },
+  { value: "buck_antler_oil", name: "Buck Serum Oil", boosts: "Buck",     image: "/images/gadgets/buck_antler_oil.png", emoji: "🧴" },
+  { value: "cat_yarnball",    name: "Cat Silk Yarn Ball",  boosts: "Cat",       image: "/images/gadgets/cat_yarnball.png",    emoji: "🧶" },
+  { value: "dog_treats",      name: "Dog Treats",      boosts: "Dog",       image: "/images/gadgets/dog_treats.png",      emoji: "🦴" },
 ];
 
 // ─── Login ─────────────────────────────────────────────────────────────────
@@ -145,7 +145,7 @@ function switchItemTab(category) {
   if (gadgetsSection) gadgetsSection.style.display = category === "gadget" ? "block" : "none";
 
   // Gadget auctions are always "normal" — hide type selector
-  if (auctionTypeRow) auctionTypeRow.style.display = category === "gadget" ? "none" : "flex";
+  if (auctionTypeRow) auctionTypeRow.style.display = "flex";
   if (switchWrapper) switchWrapper.style.display = "none";
 
   // Deselect all cards
@@ -171,9 +171,15 @@ if (auctionStartForm) {
     if (currentItemCategory === "gadget") {
       const gadgetSelect = document.getElementById("gadget-select");
       const gadgetType = gadgetSelect ? gadgetSelect.value : selectedGadget;
+      const auctionType = document.getElementById("auction-type").value;
+      const switchTarget = document.getElementById("switch-target").value;
 
       if (!gadgetType || !startingPrice) {
         if (errorEl) { errorEl.textContent = "Please select a gadget and set a price."; errorEl.style.display = "block"; }
+        return;
+      }
+      if (auctionType === "switch" && !switchTarget) {
+        if (errorEl) { errorEl.textContent = "Pick a switch target gadget."; errorEl.style.display = "block"; }
         return;
       }
 
@@ -181,14 +187,14 @@ if (auctionStartForm) {
         itemCategory: "gadget",
         gadgetType,
         startingPrice,
-        auctionType: "normal",
+        auctionType,
         animalType: null,
-        switchTarget: null,
+        switchTarget: auctionType === "switch" ? switchTarget : null,
       });
 
       if (errorEl) { errorEl.textContent = ""; errorEl.style.display = "none"; }
       const gd = getGadgetData(gadgetType);
-      updateCurrentAuctionDisplay(gadgetType, startingPrice, "normal", null, "gadget");
+      updateCurrentAuctionDisplay(gadgetType, startingPrice, auctionType, null, "gadget");
 
     } else {
       const animalSelect = document.getElementById("animal-select");
@@ -259,13 +265,28 @@ if (revealAnimalBtn) {
   });
 }
 
+const revealGadgetBtn = document.getElementById("reveal-gadget-btn");
+if (revealGadgetBtn) {
+  revealGadgetBtn.addEventListener("click", () => {
+    if (confirm("Reveal the gadget to all public viewers? This cannot be undone.")) {
+      socket.emit("admin:gadget:reveal");
+    }
+  });
+}
+
 socket.on("admin:success", ({ message }) => {
   if (message.includes("revealed")) {
     const revealBtn = document.getElementById("reveal-animal-btn");
-    if (revealBtn) {
+    if (revealBtn && message.toLowerCase().includes("animal")) {
       revealBtn.textContent = "✅ Animal Revealed!";
       revealBtn.disabled = true;
       revealBtn.style.opacity = "0.6";
+    }
+    const revealGadgetBtn = document.getElementById("reveal-gadget-btn");
+    if (revealGadgetBtn && message.toLowerCase().includes("gadget")) {
+      revealGadgetBtn.textContent = "✅ Gadget Revealed!";
+      revealGadgetBtn.disabled = true;
+      revealGadgetBtn.style.opacity = "0.6";
     }
   }
 });
@@ -321,6 +342,19 @@ function renderAdminState(state) {
         revealBtn.style.opacity = "1";
       } else {
         revealBtn.style.display = "none";
+      }
+    }
+
+    // Reveal gadget button — only for blind gadget auctions
+    const revealGadgetBtn = document.getElementById("reveal-gadget-btn");
+    if (revealGadgetBtn) {
+      if (isGadget && auction.auctionType === "blind") {
+        revealGadgetBtn.style.display = "inline-block";
+        revealGadgetBtn.disabled = false;
+        revealGadgetBtn.textContent = "Reveal Gadget to All";
+        revealGadgetBtn.style.opacity = "1";
+      } else {
+        revealGadgetBtn.style.display = "none";
       }
     }
 
@@ -426,7 +460,7 @@ function updateCurrentAuctionDisplay(itemType, price, auctionType, highestBidder
       const animalData = getAnimalDataFromType(itemType);
       currentAnimal.textContent = animalData
         ? `${animalData.name} (${animalData.gender})`
-        : itemType ? `${itemType.charAt(0).toUpperCase() + itemType.slice(1)}` : "Mystery Animal";
+        : itemType ? `${itemType.charAt(0).toUpperCase() + itemType.slice(1)}` : "Mystery Animal or Gadget";
     }
   }
 
@@ -631,7 +665,7 @@ document.addEventListener("DOMContentLoaded", function () {
         </div>
         <div class="animal-name">${gadget.name}</div>
         <div class="animal-description">Doubles ${gadget.boosts} points</div>
-        <div class="animal-price">${gadget.basePrice}</div>
+        <div class="animal-price">—</div>
       `;
 
       card.addEventListener("click", function () {
@@ -646,6 +680,17 @@ document.addEventListener("DOMContentLoaded", function () {
 
       gadgetsGrid.appendChild(card);
     });
+
+    // Also populate switch-target dropdown with gadgets
+    gadgets.forEach(gadget => {
+      if (switchTarget) {
+        const opt = document.createElement("option");
+        opt.value = gadget.value;
+        opt.textContent = `${gadget.name} (Gadget) — doubles ${gadget.boosts}`;
+        opt.dataset.category = "gadget";
+        switchTarget.appendChild(opt);
+      }
+    });
   }
 
   // ── Auction type show/hide switch wrapper ──
@@ -653,9 +698,7 @@ document.addEventListener("DOMContentLoaded", function () {
   const switchWrapper = document.getElementById("switch-target-wrapper");
   if (auctionType && switchWrapper) {
     auctionType.addEventListener("change", function () {
-      if (currentItemCategory !== "gadget") {
-        switchWrapper.style.display = this.value === "switch" ? "block" : "none";
-      }
+      switchWrapper.style.display = this.value === "switch" ? "block" : "none";
     });
   }
 

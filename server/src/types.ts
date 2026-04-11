@@ -53,7 +53,7 @@ export const GADGETS: Record<GadgetType, Gadget> = {
   goat_bell: {
     type: "goat_bell",
     displayName: "Sheep Bell",
-    description: "Doubles score for all Goats you own.",
+    description: "Doubles score for all sheep you own.",
     basePrice: 10,
     boostedAnimal: "goat",
     emoji: "🔔",
@@ -62,7 +62,7 @@ export const GADGETS: Record<GadgetType, Gadget> = {
   sheep_shears: {
     type: "sheep_shears",
     displayName: "Ram Shears",
-    description: "Doubles score for all Sheep you own.",
+    description: "Doubles score for all Rams you own.",
     basePrice: 12,
     boostedAnimal: "sheep",
     emoji: "✂️",
@@ -79,7 +79,7 @@ export const GADGETS: Record<GadgetType, Gadget> = {
   },
   rooster_whistle: {
     type: "rooster_whistle",
-    displayName: "Rooster Whistle",
+    displayName: "Rooster Compass",
     description: "Doubles score for all Roosters you own.",
     basePrice: 9,
     boostedAnimal: "rooster",
@@ -88,7 +88,7 @@ export const GADGETS: Record<GadgetType, Gadget> = {
   },
   doe_saltlick: {
     type: "doe_saltlick",
-    displayName: "Doe Salt Lick",
+    displayName: "Doe Feeder",
     description: "Doubles score for all Does you own.",
     basePrice: 11,
     boostedAnimal: "doe",
@@ -97,7 +97,7 @@ export const GADGETS: Record<GadgetType, Gadget> = {
   },
   buck_antler_oil: {
     type: "buck_antler_oil",
-    displayName: "Buck Antler Oil",
+    displayName: "Buck Serum Oil",
     description: "Doubles score for all Bucks you own.",
     basePrice: 13,
     boostedAnimal: "buck",
@@ -247,11 +247,16 @@ export interface BuybackOffer {
   createdAt: number;
 }
 
+// NEW:
 export interface SwitchOffer {
   auctionId: string;
   teamId: string;
   originalAnimal: AnimalType;
   switchTarget: AnimalType;
+  // Gadget switch fields (set when itemCategory === "gadget")
+  originalGadget?: GadgetType;
+  switchTargetGadget?: GadgetType;
+  itemCategory?: AuctionItemCategory;
   status: SwitchStatus;
 }
 
@@ -259,18 +264,22 @@ export interface SwitchOffer {
 export type TradeOfferStatus = "pending" | "accepted" | "rejected" | "cancelled";
 export type TradeOfferType = "money" | "swap";
 
+// NEW:
 export interface TradeOffer {
   id: string;
   type: TradeOfferType;
   fromTeamId: string;
   toTeamId: string;
-  // Money offer: fromTeam pays price to get toTeam's animal
-  offeredPrice?: number;       // cash offered by fromTeam
-  requestedAnimalId?: string;  // animal fromTeam wants from toTeam
+  offeredPrice?: number;
+  requestedAnimalId?: string;
   requestedAnimalType?: AnimalType;
-  // Swap offer: fromTeam's animal <-> toTeam's animal
-  offeredAnimalId?: string;    // animal fromTeam is offering
+  requestedGadgetId?: string;       // gadget fromTeam wants from toTeam
+  requestedGadgetType?: GadgetType;
+  itemCategory?: AuctionItemCategory; // "animal" or "gadget"
+  offeredAnimalId?: string;
   offeredAnimalType?: AnimalType;
+  offeredGadgetId?: string;         // gadget being offered (swap) – not used for money offers
+  offeredGadgetType?: GadgetType;   // gadget being offered (swap)
   status: TradeOfferStatus;
   createdAt: number;
 }

@@ -67,8 +67,8 @@ A multiplayer team-based auction game where teams compete to acquire animals and
 |--------|--------|------------|
 | Cow | Female | $10 |
 | Bull | Male | $15 |
-| Goat | Female | $5 |
-| Sheep | Male | $10 |
+| Sheep | Female | $5 |
+| Ram | Male | $10 |
 | Chicken | Female | $3 |
 | Rooster | Male | $5 |
 | Doe | Female | $8 |

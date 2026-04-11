@@ -201,8 +201,8 @@ io.on("connection", (socket: Socket) => {
       const result = game.startAuction(
         "" as any, // animalType not used for gadgets
         startingPrice,
-        "normal",
-        null,
+        (auctionType ?? "normal") as any,
+        (switchTarget ?? null) as any,
         "gadget",
         gadgetType as any
       );
@@ -315,6 +315,30 @@ io.on("connection", (socket: Socket) => {
     socket.emit("admin:success", { message: `Animal (${result.animalType}) revealed to all viewers.` });
   });
 
+  socket.on("admin:gadget:reveal", () => {
+    const session = sessions.get(socket.id);
+    if (!session?.isAdmin) {
+      socket.emit("admin:error", { message: "Admin access required." });
+      return;
+    }
+
+    const result = game.revealGadget();
+    if (!result.ok) {
+      socket.emit("admin:error", { message: result.message });
+      return;
+    }
+
+    console.log(`Admin revealed gadget: ${result.gadgetType}`);
+
+    io.emit("auction:gadget:revealed", { gadgetType: result.gadgetType });
+
+    emitPublicState();
+    emitAdminState();
+    sessions.forEach((sess) => { if (sess.teamId) emitUserState(sess.teamId); });
+
+    socket.emit("admin:success", { message: `Gadget (${result.gadgetType}) revealed to all viewers.` });
+  });
+
   socket.on("switch:choose", ({ choice }: { choice?: string }) => {
     const session = sessions.get(socket.id);
     if (!session?.teamId) {
@@ -414,6 +438,27 @@ io.on("connection", (socket: Socket) => {
     emitAdminState();
     socket.emit("trade:sent", { offer: result.offer });
   });
+
+  // ── NEW: Money offer for a gadget ──────────────────────────────────────────
+  socket.on("trade:offer:money:gadget", ({ toTeamId, requestedGadgetId, offeredPrice }: { toTeamId?: string; requestedGadgetId?: string; offeredPrice?: number }) => {
+    const session = sessions.get(socket.id);
+    if (!session?.teamId) { socket.emit("trade:error", { message: "Please login first." }); return; }
+    if (game.getPublicState().auction.isActive) { socket.emit("trade:error", { message: "Trade offers are disabled while an auction is active." }); return; }
+    if (typeof toTeamId !== "string" || typeof requestedGadgetId !== "string" || typeof offeredPrice !== "number") {
+      socket.emit("trade:error", { message: "Invalid gadget trade parameters." }); return;
+    }
+    const result = game.createMoneyGadgetTradeOffer(session.teamId, toTeamId, requestedGadgetId, offeredPrice);
+    if (!result.ok) { socket.emit("trade:error", { message: result.message }); return; }
+    // Notify recipient
+    sessions.forEach((sess, sid) => {
+      if (sess.teamId === toTeamId) io.to(sid).emit("trade:incoming", result.offer);
+    });
+    emitUserState(session.teamId);
+    emitUserState(toTeamId);
+    emitAdminState();
+    socket.emit("trade:sent", { offer: result.offer });
+  });
+  // ──────────────────────────────────────────────────────────────────────────
 
   socket.on("trade:offer:swap", ({ toTeamId, offeredAnimalId, requestedAnimalId }: { toTeamId?: string; offeredAnimalId?: string; requestedAnimalId?: string }) => {
     const session = sessions.get(socket.id);
