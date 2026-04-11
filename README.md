@@ -1,6 +1,6 @@
 # Farm Auction - Digitalized
 
-A multiplayer team-based auction game where teams compete to acquire animals and build the most valuable farm through strategic bidding and pair completion.
+A multiplayer team-based auction game where teams compete to acquire animals and build the most valuable farm through strategic bidding and pair completion!
 
 ## Features
 
