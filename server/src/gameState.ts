@@ -28,7 +28,6 @@ const STARTING_BALANCE = 100;
 const MAX_TEAMS = 10;
 const DEFAULT_ADMIN_PASSWORD = "rriadmin";
 
-// Simple password hashing for demo (use bcrypt in production)
 function hashPassword(password: string): string {
   return Buffer.from(password).toString("base64");
 }
@@ -40,8 +39,8 @@ function verifyPassword(password: string, hash: string): boolean {
 export class FarmAuctionGame {
   private teams: Map<string, Team> = new Map();
   private auction: AuctionItem;
-  private hiddenAnimal: AnimalType | null = null; // actual animal when blind
-  private hiddenGadget: GadgetType | null = null; // actual gadget when blind
+  private hiddenAnimal: AnimalType | null = null;
+  private hiddenGadget: GadgetType | null = null;
   private highestBid: Bid | null = null;
   private bidHistory: Bid[] = [];
   private buybacks: BuybackOffer[] = [];
@@ -97,7 +96,6 @@ export class FarmAuctionGame {
     });
   }
 
-  // Authentication
   registerTeam(username: string, password: string): { ok: true; teamId: string } | { ok: false; message: string } {
     return { ok: false, message: "Registration is disabled. Use one of the preset teams." };
   }
@@ -145,7 +143,6 @@ export class FarmAuctionGame {
       counts[a.type] = (counts[a.type] || 0) + 1;
     });
 
-    // Build a set of boosted animal types from owned gadgets (1 gadget per animal type)
     const boostedAnimals = new Set<AnimalType>();
     gadgets.forEach((g) => {
       if (GADGETS[g.type]) {
@@ -165,7 +162,6 @@ export class FarmAuctionGame {
       total += male.baseValue * maleCount * maleMult + female.baseValue * femaleCount * femaleMult;
       const pairs = Math.min(maleCount, femaleCount);
       if (pairs > 0) {
-        // Pair bonus is based on the boosted values too (so owning animal+its gadget helps like pairs)
         bonus += (male.baseValue * maleMult + female.baseValue * femaleMult) * pairs;
       }
     }
@@ -188,8 +184,6 @@ export class FarmAuctionGame {
     );
   }
 
-  // Start an auction for either an animal OR a gadget.
-  // Pass itemCategory="gadget" and gadgetType to auction a gadget.
   startAuction(
     animalType: AnimalType,
     startingPrice: number,
@@ -249,7 +243,7 @@ export class FarmAuctionGame {
 
     this.highestBid = null;
     this.bidHistory = [];
-    this.buybacks = this.buybacks.filter((b) => b.status === "pending"); // keep pending offers
+    this.buybacks = this.buybacks.filter((b) => b.status === "pending");
 
     for (const t of this.teams.values()) {
       t.lockedBid = 0;
@@ -287,13 +281,13 @@ export class FarmAuctionGame {
 
     if (category === "animal" && this.auction.auctionType === "blind" && this.hiddenAnimal) {
       awardAnimal = this.hiddenAnimal;
-      this.auction.animalType = this.hiddenAnimal; // reveal
+      this.auction.animalType = this.hiddenAnimal;
     }
 
     let awardGadgetFinal: GadgetType | null = awardGadget;
     if (category === "gadget" && this.auction.auctionType === "blind" && this.hiddenGadget) {
       awardGadgetFinal = this.hiddenGadget;
-      this.auction.gadgetType = this.hiddenGadget; // reveal
+      this.auction.gadgetType = this.hiddenGadget;
     }
 
     if (winnerId) {
@@ -305,24 +299,21 @@ export class FarmAuctionGame {
 
         if (category === "gadget" && awardGadgetFinal) {
           if (this.auction.auctionType === "switch" && this.auction.switchTarget) {
-            // Hold for choice — switchTarget is a GadgetType for gadget switch auctions
             this.switchOffer = {
               auctionId: this.auction.id!,
               teamId: winnerId,
-              originalAnimal: "cow" as AnimalType, // placeholder, not used for gadget switch
-              switchTarget: "cow" as AnimalType,   // placeholder, not used for gadget switch
+              originalAnimal: "cow" as AnimalType,
+              switchTarget: "cow" as AnimalType,
               originalGadget: awardGadgetFinal,
               switchTargetGadget: this.auction.switchTarget as unknown as GadgetType,
               itemCategory: "gadget",
               status: "pending",
             };
           } else {
-            // Award gadget immediately
             winner.gadgets.push({ id: uuid(), type: awardGadgetFinal, acquiredAt: Date.now() });
           }
         } else if (category === "animal" && awardAnimal) {
           if (this.auction.auctionType === "switch" && this.auction.switchTarget) {
-            // hold for choice
             this.switchOffer = {
               auctionId: this.auction.id!,
               teamId: winnerId,
@@ -331,7 +322,6 @@ export class FarmAuctionGame {
               status: "pending",
             };
           } else {
-            // award immediately
             winner.farm.push({ id: uuid(), type: awardAnimal, acquiredAt: Date.now() });
           }
         }
@@ -397,18 +387,15 @@ export class FarmAuctionGame {
     if (!team) return { ok: false, message: "Team not found." };
 
     if (this.switchOffer.itemCategory === "gadget") {
-      // Gadget switch: accept = keep original gadget, switch = take the mystery gadget target
       const gadgetToAdd = choice === "accept"
         ? this.switchOffer.originalGadget!
         : this.switchOffer.switchTargetGadget!;
       if (GADGETS[gadgetToAdd]) {
         team.gadgets.push({ id: uuid(), type: gadgetToAdd, acquiredAt: Date.now() });
       } else if (ANIMALS[gadgetToAdd as unknown as AnimalType]) {
-        // Cross-type switch: target was actually an animal
         team.farm.push({ id: uuid(), type: gadgetToAdd as unknown as AnimalType, acquiredAt: Date.now() });
       }
     } else {
-      // Animal switch
       const animalToAdd = choice === "accept" ? this.switchOffer.originalAnimal : this.switchOffer.switchTarget;
       team.farm.push({ id: uuid(), type: animalToAdd, acquiredAt: Date.now() });
     }
@@ -575,6 +562,70 @@ export class FarmAuctionGame {
     return { ok: true, offer };
   }
 
+  // ── NEW: Swap involving gadgets (any combo: animal↔gadget, gadget↔animal, gadget↔gadget) ──
+  createSwapGadgetTradeOffer(
+    fromTeamId: string,
+    toTeamId: string,
+    // What fromTeam is offering — exactly one of these will be set
+    offeredAnimalId: string | null,
+    offeredGadgetId: string | null,
+    // What fromTeam wants — exactly one of these will be set (animal already handled by createSwapTradeOffer)
+    requestedAnimalId: string | null,
+    requestedGadgetId: string | null,
+  ): { ok: true; offer: TradeOffer } | { ok: false; message: string } {
+    const fromTeam = this.getTeam(fromTeamId);
+    const toTeam = this.getTeam(toTeamId);
+    if (!fromTeam) return { ok: false, message: "Your team not found." };
+    if (!toTeam) return { ok: false, message: "Target team not found." };
+    if (fromTeamId === toTeamId) return { ok: false, message: "Cannot trade with yourself." };
+    if (!offeredAnimalId && !offeredGadgetId) return { ok: false, message: "You must offer something." };
+    if (!requestedAnimalId && !requestedGadgetId) return { ok: false, message: "You must request something." };
+
+    const offer: TradeOffer = {
+      id: uuid(),
+      type: "swap",
+      fromTeamId,
+      toTeamId,
+      status: "pending",
+      createdAt: Date.now(),
+      itemCategory: offeredGadgetId || requestedGadgetId ? "gadget" : "animal",
+    };
+
+    // Validate and attach offered item
+    if (offeredAnimalId) {
+      const animal = fromTeam.farm.find((a) => a.id === offeredAnimalId);
+      if (!animal) return { ok: false, message: "You don't own the animal you're offering." };
+      if (this.isAnimalInPendingTrade(animal.id)) return { ok: false, message: "Your offered animal is already in a pending trade." };
+      offer.offeredAnimalId = animal.id;
+      offer.offeredAnimalType = animal.type;
+    } else if (offeredGadgetId) {
+      const gadget = fromTeam.gadgets.find((g) => g.id === offeredGadgetId);
+      if (!gadget) return { ok: false, message: "You don't own the gadget you're offering." };
+      if (this.isGadgetInPendingTrade(gadget.id)) return { ok: false, message: "Your offered gadget is already in a pending trade." };
+      offer.offeredGadgetId = gadget.id;
+      offer.offeredGadgetType = gadget.type;
+    }
+
+    // Validate and attach requested item
+    if (requestedAnimalId) {
+      const animal = toTeam.farm.find((a) => a.id === requestedAnimalId);
+      if (!animal) return { ok: false, message: "That animal doesn't belong to the target team." };
+      if (this.isAnimalInPendingTrade(animal.id)) return { ok: false, message: "That animal is already in a pending trade." };
+      offer.requestedAnimalId = animal.id;
+      offer.requestedAnimalType = animal.type;
+    } else if (requestedGadgetId) {
+      const gadget = toTeam.gadgets.find((g) => g.id === requestedGadgetId);
+      if (!gadget) return { ok: false, message: "That gadget doesn't belong to the target team." };
+      if (this.isGadgetInPendingTrade(gadget.id)) return { ok: false, message: "That gadget is already in a pending trade." };
+      offer.requestedGadgetId = gadget.id;
+      offer.requestedGadgetType = gadget.type;
+    }
+
+    this.tradeOffers.push(offer);
+    return { ok: true, offer };
+  }
+  // ─────────────────────────────────────────────────────────────────────────────
+
   respondToTradeOffer(
     teamId: string,
     offerId: string,
@@ -613,7 +664,6 @@ export class FarmAuctionGame {
         if (gadgetIdx < 0) {
           return { ok: false, message: "Gadget no longer exists." };
         }
-        // Transfer gadget and money
         toTeam.gadgets.splice(gadgetIdx, 1);
         toTeam.balance += offer.offeredPrice;
         fromTeam.gadgets.push({ id: uuid(), type: offer.requestedGadgetType, acquiredAt: Date.now() });
@@ -632,30 +682,59 @@ export class FarmAuctionGame {
         fromTeam.balance -= offer.offeredPrice;
       }
     } else {
-      // swap offer (animal for animal)
-      if (!offer.offeredAnimalId || !offer.requestedAnimalId) {
-        return { ok: false, message: "Invalid swap offer data." };
-      }
-      const offeredIdx = fromTeam.farm.findIndex((a) => a.id === offer.offeredAnimalId);
-      const requestedIdx = toTeam.farm.findIndex((a) => a.id === offer.requestedAnimalId);
-      if (offeredIdx < 0) return { ok: false, message: "Offered animal no longer exists." };
-      if (requestedIdx < 0) return { ok: false, message: "Requested animal no longer exists." };
+      // ── SWAP — now handles all 4 combinations ──────────────────────────────
 
-      fromTeam.farm.splice(offeredIdx, 1);
-      toTeam.farm.splice(requestedIdx, 1);
-      fromTeam.farm.push({ id: uuid(), type: offer.requestedAnimalType!, acquiredAt: Date.now() });
-      toTeam.farm.push({ id: uuid(), type: offer.offeredAnimalType!, acquiredAt: Date.now() });
+      // Remove offered item from fromTeam
+      if (offer.offeredAnimalId) {
+        const idx = fromTeam.farm.findIndex((a) => a.id === offer.offeredAnimalId);
+        if (idx < 0) return { ok: false, message: "Offered animal no longer exists." };
+        fromTeam.farm.splice(idx, 1);
+      } else if (offer.offeredGadgetId) {
+        const idx = fromTeam.gadgets.findIndex((g) => g.id === offer.offeredGadgetId);
+        if (idx < 0) return { ok: false, message: "Offered gadget no longer exists." };
+        fromTeam.gadgets.splice(idx, 1);
+      } else {
+        return { ok: false, message: "Invalid swap: nothing offered." };
+      }
+
+      // Remove requested item from toTeam
+      if (offer.requestedAnimalId) {
+        const idx = toTeam.farm.findIndex((a) => a.id === offer.requestedAnimalId);
+        if (idx < 0) return { ok: false, message: "Requested animal no longer exists." };
+        toTeam.farm.splice(idx, 1);
+      } else if (offer.requestedGadgetId) {
+        const idx = toTeam.gadgets.findIndex((g) => g.id === offer.requestedGadgetId);
+        if (idx < 0) return { ok: false, message: "Requested gadget no longer exists." };
+        toTeam.gadgets.splice(idx, 1);
+      } else {
+        return { ok: false, message: "Invalid swap: nothing requested." };
+      }
+
+      // Give offered item to toTeam
+      if (offer.offeredAnimalType) {
+        toTeam.farm.push({ id: uuid(), type: offer.offeredAnimalType, acquiredAt: Date.now() });
+      } else if (offer.offeredGadgetType) {
+        toTeam.gadgets.push({ id: uuid(), type: offer.offeredGadgetType, acquiredAt: Date.now() });
+      }
+
+      // Give requested item to fromTeam
+      if (offer.requestedAnimalType) {
+        fromTeam.farm.push({ id: uuid(), type: offer.requestedAnimalType, acquiredAt: Date.now() });
+      } else if (offer.requestedGadgetType) {
+        fromTeam.gadgets.push({ id: uuid(), type: offer.requestedGadgetType, acquiredAt: Date.now() });
+      }
+      // ───────────────────────────────────────────────────────────────────────
     }
 
     offer.status = "accepted";
 
-    // Cancel other pending offers involving the same animals/gadgets (they no longer exist)
+    // Cancel other pending offers involving the same animals/gadgets
     this.tradeOffers.forEach((o) => {
       if (o.id !== offerId && o.status === "pending") {
         const involvedAnimals = [o.offeredAnimalId, o.requestedAnimalId].filter(Boolean);
         const involvedGadgets = [o.offeredGadgetId, o.requestedGadgetId].filter(Boolean);
         const tradedAnimals = [offer.offeredAnimalId, offer.requestedAnimalId].filter(Boolean);
-        const tradedGadgets = [offer.requestedGadgetId].filter(Boolean); // only requested gadget changes hands in money offers
+        const tradedGadgets = [offer.offeredGadgetId, offer.requestedGadgetId].filter(Boolean);
         if (
           involvedAnimals.some((id) => tradedAnimals.includes(id)) ||
           involvedGadgets.some((id) => tradedGadgets.includes(id))

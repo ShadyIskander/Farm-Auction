@@ -133,6 +133,16 @@
       font-family: 'Inter', sans-serif;
     }
 
+    select option {
+    background: #2c1c0c;
+    color: var(--cream);
+    }
+
+    select optgroup {
+  color: #b89454;
+  background: #2c1c0c;
+}
+
     label {
       display: block;
       margin-bottom: 8px;
@@ -631,7 +641,7 @@
         </div>
         <div class="stat-card">
           <h3>Wallet</h3>
-          <div class="stat-value" id="current-balance">$100</div>
+          <div class="stat-value" id="current-balance">100</div>
         </div>
         <div class="stat-card">
           <h3>Livestock</h3>
@@ -699,7 +709,7 @@
             style="background: rgba(255,255,255,0.05); padding: 15px; border-radius: 10px; margin-bottom: 20px;">
             <div style="display: flex; justify-content: space-between; margin-bottom: 5px;">
               <span>Available Balance:</span>
-              <strong id="player-balance" style="color: var(--money-color);">$100</strong>
+              <strong id="player-balance" style="color: var(--money-color);">100</strong>
             </div>
             <div style="display: flex; justify-content: space-between;">
               <span>Locked in Bids:</span>
@@ -787,9 +797,9 @@
         </div>
 
         <div id="trade-payment-swap-panel" style="display:none; margin-bottom:14px;">
-          <label>Your Animal (what you're giving)</label>
-          <select id="trade-swap-my-animal" style="width:100%;padding:10px;margin-bottom:4px;background:rgba(255,255,255,0.08);color:inherit;border:1px solid rgba(255,255,255,0.15);border-radius:8px;">
-            <option value="">-- You have no animals --</option>
+          <label>Your Item (what you're giving)</label>
+          <select id="trade-swap-my-item" style="width:100%;padding:10px;margin-bottom:4px;background:rgba(255,255,255,0.08);color:inherit;border:1px solid rgba(255,255,255,0.15);border-radius:8px;">
+            <option value="">-- Choose what you're giving --</option>
           </select>
         </div>
 

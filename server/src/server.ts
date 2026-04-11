@@ -28,7 +28,6 @@ const sessions = new Map<string, SocketSession>();
 app.use(express.json());
 app.use(cors());
 
-// Serve frontend from workspace /public
 const publicPath = path.join(process.cwd(), "public");
 app.use(express.static(publicPath));
 
@@ -37,8 +36,6 @@ const emitPublicState = () => {
   const state: PublicState = game.getPublicState();
   io.emit("state:update", state);
 
-  // CRITICAL UPDATE: Force push individual user state to every connected team
-  // whenever the public state changes. This mimics Admin behavior and guarantees sync.
   sessions.forEach((sess, sid) => {
     if (sess.teamId) {
       const userState = game.getUserState(sess.teamId);
@@ -165,7 +162,6 @@ io.on("connection", (socket: Socket) => {
     emitUserState(session.teamId);
   });
 
-  // Updated: now also accepts itemCategory and gadgetType for gadget auctions
   socket.on("admin:auction:start", ({
     animalType,
     startingPrice,
@@ -199,7 +195,7 @@ io.on("connection", (socket: Socket) => {
         return;
       }
       const result = game.startAuction(
-        "" as any, // animalType not used for gadgets
+        "" as any,
         startingPrice,
         (auctionType ?? "normal") as any,
         (switchTarget ?? null) as any,
@@ -232,7 +228,6 @@ io.on("connection", (socket: Socket) => {
     emitPublicState();
     emitAdminState();
 
-    // Broadcast fresh USER state to all connected teams so they see the auction immediately
     sessions.forEach((sess) => {
       if (sess.teamId) {
         emitUserState(sess.teamId);
@@ -253,7 +248,6 @@ io.on("connection", (socket: Socket) => {
       socket.emit("admin:error", { message: result.message });
       return;
     }
-    // Push updated state to winner (contains awarded animal/gadget)
     if (result.winnerId) {
       emitUserState(result.winnerId);
     }
@@ -293,25 +287,15 @@ io.on("connection", (socket: Socket) => {
       socket.emit("admin:error", { message: "Admin access required." });
       return;
     }
-
     const result = game.revealAnimal();
     if (!result.ok) {
       socket.emit("admin:error", { message: result.message });
       return;
     }
-
     console.log(`Admin revealed animal: ${result.animalType}`);
-
-    // Broadcast reveal to all public viewers
-    io.emit("auction:animal:revealed", {
-      animalType: result.animalType
-    });
-
-    // Also update the public state to reflect the reveal
+    io.emit("auction:animal:revealed", { animalType: result.animalType });
     emitPublicState();
     emitAdminState();
-
-    // Notify admin
     socket.emit("admin:success", { message: `Animal (${result.animalType}) revealed to all viewers.` });
   });
 
@@ -321,21 +305,16 @@ io.on("connection", (socket: Socket) => {
       socket.emit("admin:error", { message: "Admin access required." });
       return;
     }
-
     const result = game.revealGadget();
     if (!result.ok) {
       socket.emit("admin:error", { message: result.message });
       return;
     }
-
     console.log(`Admin revealed gadget: ${result.gadgetType}`);
-
     io.emit("auction:gadget:revealed", { gadgetType: result.gadgetType });
-
     emitPublicState();
     emitAdminState();
     sessions.forEach((sess) => { if (sess.teamId) emitUserState(sess.teamId); });
-
     socket.emit("admin:success", { message: `Gadget (${result.gadgetType}) revealed to all viewers.` });
   });
 
@@ -420,6 +399,7 @@ io.on("connection", (socket: Socket) => {
 
   // --- Peer-to-Peer Trade Offers ---
 
+  // Money offer for an animal
   socket.on("trade:offer:money", ({ toTeamId, requestedAnimalId, offeredPrice }: { toTeamId?: string; requestedAnimalId?: string; offeredPrice?: number }) => {
     const session = sessions.get(socket.id);
     if (!session?.teamId) { socket.emit("trade:error", { message: "Please login first." }); return; }
@@ -429,7 +409,6 @@ io.on("connection", (socket: Socket) => {
     }
     const result = game.createMoneyTradeOffer(session.teamId, toTeamId, requestedAnimalId, offeredPrice);
     if (!result.ok) { socket.emit("trade:error", { message: result.message }); return; }
-    // Notify recipient
     sessions.forEach((sess, sid) => {
       if (sess.teamId === toTeamId) io.to(sid).emit("trade:incoming", result.offer);
     });
@@ -439,7 +418,7 @@ io.on("connection", (socket: Socket) => {
     socket.emit("trade:sent", { offer: result.offer });
   });
 
-  // ── NEW: Money offer for a gadget ──────────────────────────────────────────
+  // Money offer for a gadget
   socket.on("trade:offer:money:gadget", ({ toTeamId, requestedGadgetId, offeredPrice }: { toTeamId?: string; requestedGadgetId?: string; offeredPrice?: number }) => {
     const session = sessions.get(socket.id);
     if (!session?.teamId) { socket.emit("trade:error", { message: "Please login first." }); return; }
@@ -449,7 +428,6 @@ io.on("connection", (socket: Socket) => {
     }
     const result = game.createMoneyGadgetTradeOffer(session.teamId, toTeamId, requestedGadgetId, offeredPrice);
     if (!result.ok) { socket.emit("trade:error", { message: result.message }); return; }
-    // Notify recipient
     sessions.forEach((sess, sid) => {
       if (sess.teamId === toTeamId) io.to(sid).emit("trade:incoming", result.offer);
     });
@@ -458,8 +436,8 @@ io.on("connection", (socket: Socket) => {
     emitAdminState();
     socket.emit("trade:sent", { offer: result.offer });
   });
-  // ──────────────────────────────────────────────────────────────────────────
 
+  // Swap offer — animal for animal (original)
   socket.on("trade:offer:swap", ({ toTeamId, offeredAnimalId, requestedAnimalId }: { toTeamId?: string; offeredAnimalId?: string; requestedAnimalId?: string }) => {
     const session = sessions.get(socket.id);
     if (!session?.teamId) { socket.emit("trade:error", { message: "Please login first." }); return; }
@@ -478,6 +456,44 @@ io.on("connection", (socket: Socket) => {
     socket.emit("trade:sent", { offer: result.offer });
   });
 
+  // Swap offer — any combo involving gadgets (animal↔gadget, gadget↔animal, gadget↔gadget)
+  socket.on("trade:offer:swap:gadget", ({
+    toTeamId,
+    offeredAnimalId,
+    offeredGadgetId,
+    requestedAnimalId,
+    requestedGadgetId,
+  }: {
+    toTeamId?: string;
+    offeredAnimalId?: string | null;
+    offeredGadgetId?: string | null;
+    requestedAnimalId?: string | null;
+    requestedGadgetId?: string | null;
+  }) => {
+    const session = sessions.get(socket.id);
+    if (!session?.teamId) { socket.emit("trade:error", { message: "Please login first." }); return; }
+    if (game.getPublicState().auction.isActive) { socket.emit("trade:error", { message: "Trade offers are disabled while an auction is active." }); return; }
+    if (typeof toTeamId !== "string") { socket.emit("trade:error", { message: "Invalid swap parameters." }); return; }
+
+    const result = game.createSwapGadgetTradeOffer(
+      session.teamId,
+      toTeamId,
+      offeredAnimalId ?? null,
+      offeredGadgetId ?? null,
+      requestedAnimalId ?? null,
+      requestedGadgetId ?? null,
+    );
+    if (!result.ok) { socket.emit("trade:error", { message: result.message }); return; }
+    sessions.forEach((sess, sid) => {
+      if (sess.teamId === toTeamId) io.to(sid).emit("trade:incoming", result.offer);
+    });
+    emitUserState(session.teamId);
+    emitUserState(toTeamId);
+    emitAdminState();
+    socket.emit("trade:sent", { offer: result.offer });
+  });
+
+  // Respond to any trade offer (accept or reject)
   socket.on("trade:respond", ({ offerId, accept }: { offerId?: string; accept?: boolean }) => {
     const session = sessions.get(socket.id);
     if (!session?.teamId) { socket.emit("trade:error", { message: "Please login first." }); return; }
@@ -496,6 +512,7 @@ io.on("connection", (socket: Socket) => {
     emitAdminState();
   });
 
+  // Cancel your own outgoing trade offer
   socket.on("trade:cancel", ({ offerId }: { offerId?: string }) => {
     const session = sessions.get(socket.id);
     if (!session?.teamId) { socket.emit("trade:error", { message: "Please login first." }); return; }
@@ -509,6 +526,7 @@ io.on("connection", (socket: Socket) => {
     emitAdminState();
   });
 
+  // Admin cancel any trade offer
   socket.on("admin:trade:cancel", ({ offerId }: { offerId?: string }) => {
     const session = sessions.get(socket.id);
     if (!session?.isAdmin) {
